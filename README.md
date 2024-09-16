@@ -1,47 +1,42 @@
-# Unofficial desktop Lumix Link application #
+# Lumix Photobox
 
-This is an unofficial counterpart of the official [Panasonic Lumix Link mobile app](https://play.google.com/store/apps/details?id=jp.co.panasonic.lumix_link.activity&hl=cs). With this application, you can remotely control your Lumix camera, take pictures, record video, adjust capture settings and so on. 
+This fork offers a simple photobox user interface to be interacted with via touchscreen and uses a Lumix camera. 
 
-## Usage instructions ##
+It is based on an fork of an unofficial counterpart of the official [Panasonic Lumix Link mobile app](https://play.google.com/store/apps/details?id=jp.co.panasonic.lumix_link.activity&hl=cs). With this application, you can remotely control your Lumix camera, take pictures, record video, adjust capture settings and so on. 
 
-Basically, the usage instructions can be found at http://www.personal-view.com/talks/discussion/6703/control-your-gh3-from-a-web-browser-now-with-video-/p1 . 
+# Dependencies
 
-Do not download the application from the forum, download [it here on Github](https://github.com/peci1/lumix-link-desktop/releases).
+for the live view to work, you need :
+- Java RE
+- Add the java bin directory to your PATH
 
-There are a few differences in this version to the one posted on the forum: both the web and the Java applications ask you for the camera's IP address, so that different connection modes are supported (e.g. the camera connected to your home wifi). Check the [changelog](https://github.com/peci1/lumix-link-desktop/blob/master/CHANGELOG.md) for more.
 
-*Important:* If you connect to the camera by making a hotspot on the camera, there is a security mechanism. When you first connect the app to the camera, the camera will ask you if you want to connect "Lumix Link Desktop". You have to agree here.
+## Usage instructions
 
-If you would see errors like _err-unsuitable-app_ on the results window, it means these security restrictions do not let the app to connect. You can try fixing that by opening `http://CAMERA_IP/cam.cgi?mode=accctrl&type=req_acc&value=0&value2=Vexia%20Fcs` in your browser _before_ starting the app (substituting `CAMERA_IP` by the IP address of your camera, which in case of connecting to hotspot, will probably be 192.168.54.1).
+- start wifi hotspot on your camera
+- connect your computer to the camera's hotspot
+- start control.bat
+- enter your cameras IP address (for hotspot mode 192.168.54.1)
+- press the button to take a photo
 
-## Supported models ##
+When you first connect the app to the camera, the camera will ask you if you want to connect "Lumix Link Desktop". You have to agree here.
+If this information does not show automatically you may get an error like like _err-unsuitable-app_ instead.
+Open `http://CAMERA_IP/cam.cgi?mode=accctrl&type=req_acc&value=0&value2=Vexia%20Fcs` in your browser replacing `CAMERA_IP` by the IP address of your camera,
 
-The **basic parts of this application should work with all Lumix cameras that can be used with the mobile app**. 
+You can check the status of the connection by opening `http://192.168.54.1/cam.cgi?mode=getstate`.
 
-However, as the cameras have different features, this application might or might not support all of them. Here is a list of tested cameras.
+## Supported models
 
-100% compatible (and tested) cameras:
- 
- - GH3
+The basic parts of this application should work with all Lumix cameras that can be used with the mobile app. 
 
-mostly compatible (and tested) cameras:
+## Origin of this application
 
- - GH4
- - G6
- - GM1
- - FZ1000
- - GX80/GX85
-
-You are welcome to report your experience with different types of cameras.
-
-## Origin of this application ##
-
-This is a "fork" of the application published on http://www.personal-view.com/talks/discussion/6703/control-your-gh3-from-a-web-browser-now-with-video-/p1 . Unfortunately, I haven't found a repository for this application, so I had to create my own one and now I'm trying to communicate with the original author to merge our efforts.
+This is a "fork" of a "fork" of the application published on http://www.personal-view.com/talks/discussion/6703/control-your-gh3-from-a-web-browser-now-with-video-/p1 . Unfortunately, I haven't found a repository for this application, so I had to create my own one and now I'm trying to communicate with the original author to merge our efforts.
 
 Thanks very much to leniusible for the initial work on reverse-engeneering the communication protocol. If you are lenuisible, please, contact me here on github!
 
-## License ##
+## License
 
 The license of the original application is unclear. I assumed it is given to the public without any restrictions.
 
-Changes since version 2.0.0 (the first version of this fork) are covered by the 3-clause BSD license.
+Changes since the first fork are covered by the 3-clause BSD license.
