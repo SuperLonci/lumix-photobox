@@ -25,7 +25,7 @@ public class Options {
      * @return the LumixStreamViewer options
      */
     public static Options read(String[] args) {
-        String cameraIp = "192.168.0.1";
+        String cameraIp = "192.168.54.1";
         int cameraNetMaskBitSize = 24;
 
         if (args.length == 2) {
@@ -38,10 +38,10 @@ public class Options {
         } else {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
                 // camera IP
-                System.out.print("Camera IP address [192.168.0.1]: ");
+                System.out.print("Camera IP address [192.168.54.1]: ");
                 cameraIp = in.readLine();
                 if (cameraIp.length() == 0) {
-                    cameraIp = "192.168.0.1";
+                    cameraIp = "192.168.54.1";
                 }
 
                 // camera netmask
