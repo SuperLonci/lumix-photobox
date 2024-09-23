@@ -20,8 +20,13 @@ import javax.imageio.ImageIO;
  *
  * The camera sends a continuous stream of UDP packets to whoever called its "startstream" method
  */
-public class StreamViewer implements Runnable {
+public class StreamViewer implements StreamViewerInterface {
 
+// debugigng
+    private long packetCount = 0;
+    private long lastLogTime = System.currentTimeMillis();
+
+    private Consumer<BufferedImage> imageConsumer;
 
     /**
      * The local UDP socket for receiving the video stream.
@@ -38,9 +43,12 @@ public class StreamViewer implements Runnable {
      */
     private final InetAddress cameraIp;
 
-    private final Consumer<BufferedImage> imageConsumer;
-
     private ExecutorService imageExecutor = Executors.newCachedThreadPool();
+
+    @Override
+    public void setImageConsumer(Consumer<BufferedImage> imageConsumer) {
+        this.imageConsumer = imageConsumer;
+    }
 
     /**
      * Create the Lumix videostream reader connected to the default UDP port 49199.
@@ -79,14 +87,16 @@ public class StreamViewer implements Runnable {
     }
 
     private BufferedImage retrieveImage(DatagramPacket receivedPacket) {
-
         final byte[] videoData = getImageData(receivedPacket);
 
         BufferedImage img = null;
         try {
             img = ImageIO.read(new ByteArrayInputStream(videoData));
+            if (img == null) {
+                System.out.println("ImageIO.read returned null. Data length: " + videoData.length);
+            }
         } catch (IOException e) {
-            System.err.println("Error while reading image data");
+            System.err.println("Error while reading image data: " + e.getMessage());
             e.printStackTrace();
         }
 
@@ -122,7 +132,6 @@ public class StreamViewer implements Runnable {
 
     @Override
     public void run() {
-        // The camera sends each image in one UDP packet, normally between 25000 and 30000 bytes. We set 35000 here to be safe.
         byte[] udpPacketBuffer = new byte[35000];
 
         while (!Thread.interrupted()) {
@@ -132,9 +141,21 @@ public class StreamViewer implements Runnable {
 
                 localUdpSocket.receive(receivedPacket);
 
+                packetCount++;
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastLogTime > 5000) { // Log every 5 seconds
+                    System.out.println("Received " + packetCount + " packets in the last 5 seconds");
+                    packetCount = 0;
+                    lastLogTime = currentTime;
+                }
+
                 imageExecutor.submit(() -> {
                     BufferedImage newImage = retrieveImage(receivedPacket);
-                    imageConsumer.accept(newImage);
+                    if (newImage != null) {
+                        imageConsumer.accept(newImage);
+                    } else {
+                        System.out.println("Failed to retrieve image from packet");
+                    }
                 });
 
             } catch (IOException e) {
