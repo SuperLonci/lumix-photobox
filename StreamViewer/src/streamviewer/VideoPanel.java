@@ -23,6 +23,31 @@ public class VideoPanel extends JPanel {
     public VideoPanel() {
         setLayout(null); // Use null layout for absolute positioning
 
+        // Set up key listener for Enter, Esc and F key
+        setFocusable(true);
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    startCountdown();
+                } else if (e.getKeyCode() == KeyEvent.VK_F) {
+                    System.out.println("F key pressed"); // Debug print
+                    toggleFullscreen();
+                } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    System.out.println("ESC key pressed"); // Debug print
+                    exitFullscreen();
+                }
+            }
+        });
+
+        // Add component listener to handle resizing
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                updateComponentPositions();
+            }
+        });
+
         // Load the smiley image
         try {
             smileyImage = ImageIO.read(new File("./src/streamviewer/partySmiley.png"));
@@ -52,11 +77,7 @@ public class VideoPanel extends JPanel {
 
                 if (showingSmiley && smileyImage != null) {
                     // Draw the smiley image
-                    int imageWidth = getWidth() / 2;
-                    int imageHeight = getHeight() / 2;
-                    int x = (getWidth() - imageWidth) / 2;
-                    int y = (getHeight() - imageHeight) / 2;
-                    g2d.drawImage(smileyImage, x, y, imageWidth, imageHeight, null);
+                    drawFittedImage(g, smileyImage);
                 } else {
                     // Draw the countdown number
                     String text = getText();
@@ -75,8 +96,8 @@ public class VideoPanel extends JPanel {
                     g2d.drawString(text, x, y);
 
                     // Draw text
-//                    g2d.setColor(Color.WHITE);
-//                    g2d.drawString(text, x, y);
+                    g2d.setColor(Color.WHITE);
+                    g2d.drawString(text, x, y);
                 }
 
                 g2d.dispose();
@@ -86,31 +107,25 @@ public class VideoPanel extends JPanel {
         countdownLabel.setVerticalAlignment(SwingConstants.CENTER);
         countdownLabel.setForeground(Color.WHITE);
         add(countdownLabel);
+    }
 
-        // Set up key listener for Enter, Esc and F key
-        setFocusable(true);
-        addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    startCountdown();
-                } else if (e.getKeyCode() == KeyEvent.VK_F) {
-                    System.out.println("F key pressed"); // Debug print
-                    toggleFullscreen();
-                } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-                    System.out.println("ESC key pressed"); // Debug print
-                    exitFullscreen();
-                }
-            }
-        });
+    private void drawFittedImage(Graphics g, BufferedImage image) {
+        Graphics2D g2d = (Graphics2D) g.create();
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
-        // Add component listener to handle resizing
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                updateComponentPositions();
-            }
-        });
+        int panelWidth = getWidth();
+        int panelHeight = getHeight();
+        int imageWidth = image.getWidth();
+        int imageHeight = image.getHeight();
+
+        double scale = Math.min((double) panelWidth / imageWidth, (double) panelHeight / imageHeight);
+        int scaledWidth = (int) (imageWidth * scale);
+        int scaledHeight = (int) (imageHeight * scale);
+        int x = (panelWidth - scaledWidth) / 2;
+        int y = (panelHeight - scaledHeight) / 2;
+
+        g2d.drawImage(image, x, y, scaledWidth, scaledHeight, null);
+        g2d.dispose();
     }
 
     void updateComponentPositions() {
