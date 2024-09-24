@@ -4,6 +4,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import javax.imageio.ImageIO;
 
 public class VideoPanel extends JPanel {
 
@@ -14,9 +17,19 @@ public class VideoPanel extends JPanel {
     private int countdownSeconds = 3;
     private long lastImageDisplayTime = 0;
     private Dimension lastWindowSize;
+    private BufferedImage smileyImage;
+    private boolean showingSmiley = false;
 
     public VideoPanel() {
         setLayout(null); // Use null layout for absolute positioning
+
+        // Load the smiley image
+        try {
+            smileyImage = ImageIO.read(new File("./src/streamviewer/partySmiley.png"));
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("Failed to load partySmiley.png. Make sure it exists in the correct directory.");
+        }
 
         // Create the photo button
         photoButton = new RoundButton("Take Photo");
@@ -33,27 +46,44 @@ public class VideoPanel extends JPanel {
         countdownLabel = new JLabel("") {
             @Override
             protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
                 Graphics2D g2d = (Graphics2D) g.create();
                 g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-                String text = getText();
-                FontMetrics fm = g2d.getFontMetrics(getFont());
-                int textWidth = fm.stringWidth(text);
-                int textHeight = fm.getAscent();
+                if (showingSmiley && smileyImage != null) {
+                    // Draw the smiley image
+                    int imageWidth = getWidth() / 2;
+                    int imageHeight = getHeight() / 2;
+                    int x = (getWidth() - imageWidth) / 2;
+                    int y = (getHeight() - imageHeight) / 2;
+                    g2d.drawImage(smileyImage, x, y, imageWidth, imageHeight, null);
+                } else {
+                    // Draw the countdown number
+                    String text = getText();
+                    Font font = new Font("Arial", Font.BOLD, 300);
+                    g2d.setFont(font);
+                    FontMetrics fm = g2d.getFontMetrics();
+                    int textWidth = fm.stringWidth(text);
+                    int textHeight = fm.getAscent();
 
-                // Draw shadow
-                g2d.setColor(Color.BLACK);
-                g2d.drawString(text, (getWidth() - textWidth) / 2 + 5, (getHeight() + textHeight) / 2 + 5);
+                    int x = (getWidth() - textWidth) / 2;
+                    int y = (getHeight() + textHeight) / 2;
 
-                // Draw text
-                g2d.setColor(getForeground());
-                g2d.drawString(text, (getWidth() - textWidth) / 2, (getHeight() + textHeight) / 2);
+                    // Draw outline
+                    g2d.setColor(Color.BLACK);
+                    g2d.setStroke(new BasicStroke(8));
+                    g2d.drawString(text, x, y);
+
+                    // Draw text
+//                    g2d.setColor(Color.WHITE);
+//                    g2d.drawString(text, x, y);
+                }
 
                 g2d.dispose();
             }
         };
         countdownLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        countdownLabel.setFont(new Font("Arial", Font.BOLD, 150)); // Increased font size
+        countdownLabel.setVerticalAlignment(SwingConstants.CENTER);
         countdownLabel.setForeground(Color.WHITE);
         add(countdownLabel);
 
@@ -191,6 +221,7 @@ public class VideoPanel extends JPanel {
         }
 
         countdownSeconds = 3;
+        showingSmiley = false;
         updateCountdownLabel();
 
         countdownTimer = new Timer(1000, new ActionListener() {
@@ -199,11 +230,12 @@ public class VideoPanel extends JPanel {
                 countdownSeconds--;
                 if (countdownSeconds > 0) {
                     updateCountdownLabel();
+                } else if (countdownSeconds == 0) {
+                    showSmileyImage();
                 } else {
                     ((Timer)e.getSource()).stop();
-                    countdownLabel.setText("");
                     takePhoto();
-                    SwingUtilities.invokeLater(VideoPanel.this::requestFocusInWindow); // Request focus after countdown
+                    SwingUtilities.invokeLater(VideoPanel.this::requestFocusInWindow);
                 }
             }
         });
@@ -212,10 +244,21 @@ public class VideoPanel extends JPanel {
     }
 
     private void updateCountdownLabel() {
+        showingSmiley = false;
         countdownLabel.setText(String.valueOf(countdownSeconds));
+        countdownLabel.repaint();
+    }
+
+    private void showSmileyImage() {
+        showingSmiley = true;
+        countdownLabel.setText("");
+        countdownLabel.repaint();
     }
 
     private void takePhoto() {
+        showingSmiley = false;
+        countdownLabel.setText("");
+        countdownLabel.repaint();
         // TODO: Implement photo-taking functionality
         System.out.println("Photo taken!");
     }
