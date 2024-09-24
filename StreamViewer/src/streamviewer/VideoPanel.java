@@ -67,65 +67,57 @@ public class VideoPanel extends JPanel {
         add(photoButton);
 
         // Create the countdown label
-        countdownLabel = new JLabel("") {
+        countdownLabel = createCountdownLabel();
+        add(countdownLabel);
+    }
+
+    private JLabel createCountdownLabel() {
+        return new JLabel("") {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 if (showingSmiley && smileyImage != null) {
-                    // Draw the smiley image
                     drawFittedImage(g, smileyImage);
                 } else {
-                    // Draw the countdown number
-                    String text = getText();
-                    Font font = new Font("Arial", Font.BOLD, 300);
-                    g.setFont(font);
-                    FontMetrics fm = g.getFontMetrics();
-                    int textWidth = fm.stringWidth(text);
-                    int textHeight = fm.getAscent();
-
-                    int x = (getWidth() - textWidth) / 2;
-                    int y = (getHeight() + textHeight) / 2;
-
-                    // Draw outline
-                    g.setColor(Color.BLACK);
-                    ((Graphics2D) g).setStroke(new BasicStroke(8));
-                    g.drawString(text, x, y);
-
-                    // Draw text
-                    g.setColor(Color.WHITE);
-                    g.drawString(text, x, y);
+                    drawCountdown(g);
                 }
             }
         };
-        add(countdownLabel);
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        if (this.bufferedImage != null) {
-            sizeCheck(bufferedImage, (Graphics2D) g.create());
+        if (bufferedImage != null) {
+            drawFittedImage(g, bufferedImage);
         }
     }
 
     private void drawFittedImage(Graphics g, BufferedImage image) {
-        sizeCheck(image, (Graphics2D) g.create());
-    }
-
-    private void sizeCheck(BufferedImage image, Graphics2D g2d) {
         int panelWidth = getWidth();
         int panelHeight = getHeight();
         int imageWidth = image.getWidth();
         int imageHeight = image.getHeight();
-
         double scale = Math.min((double) panelWidth / imageWidth, (double) panelHeight / imageHeight);
         int scaledWidth = (int) (imageWidth * scale);
         int scaledHeight = (int) (imageHeight * scale);
         int x = (panelWidth - scaledWidth) / 2;
         int y = (panelHeight - scaledHeight) / 2;
+        g.drawImage(image, x, y, scaledWidth, scaledHeight, null);
+    }
 
-        g2d.drawImage(image, x, y, scaledWidth, scaledHeight, null);
-        g2d.dispose();
+    private void drawCountdown(Graphics g) {
+        String text = countdownLabel.getText();
+        Font font = new Font("Arial", Font.BOLD, 300);
+        g.setFont(font);
+        FontMetrics fm = g.getFontMetrics();
+        int textWidth = fm.stringWidth(text);
+        int textHeight = fm.getAscent();
+        int x = (getWidth() - textWidth) / 2;
+        int y = (getHeight() + textHeight) / 2;
+
+        g.setColor(Color.WHITE);
+        g.drawString(text, x, y);
     }
 
     void updateComponentPositions() {
