@@ -13,6 +13,7 @@ public class VideoPanel extends JPanel {
     private Timer countdownTimer;
     private int countdownSeconds = 3;
     private long lastImageDisplayTime = 0;
+    private Dimension lastWindowSize;
 
     public VideoPanel() {
         setLayout(null); // Use null layout for absolute positioning
@@ -22,7 +23,10 @@ public class VideoPanel extends JPanel {
         photoButton.setBackground(new Color(255, 69, 58)); // A nicer red color
         photoButton.setForeground(Color.WHITE);
         photoButton.setFont(new Font("Arial", Font.BOLD, 30));
-        photoButton.addActionListener(e -> startCountdown());
+        photoButton.addActionListener(e -> {
+            startCountdown();
+            SwingUtilities.invokeLater(this::requestFocusInWindow); // Request focus after button press
+        });
         add(photoButton);
 
         // Create the countdown label
@@ -53,13 +57,19 @@ public class VideoPanel extends JPanel {
         countdownLabel.setForeground(Color.WHITE);
         add(countdownLabel);
 
-        // Set up key listener for Enter key
+        // Set up key listener for Enter, Esc and F key
         setFocusable(true);
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
                     startCountdown();
+                } else if (e.getKeyCode() == KeyEvent.VK_F) {
+                    System.out.println("F key pressed"); // Debug print
+                    toggleFullscreen();
+                } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    System.out.println("ESC key pressed"); // Debug print
+                    exitFullscreen();
                 }
             }
         });
@@ -83,12 +93,16 @@ public class VideoPanel extends JPanel {
 
         // Position the countdown label in the center
         countdownLabel.setBounds(0, 0, width, height);
+
+        // Ensure the panel is repainted after updating positions
+        revalidate();
+        repaint();
     }
 
     public void displayNewImage(BufferedImage image) {
         this.bufferedImage = image;
         long currentTime = System.currentTimeMillis();
-        System.out.println("New image received. Time since last image: " + (currentTime - lastImageDisplayTime) + "ms");
+//        System.out.println("New image received. Time since last image: " + (currentTime - lastImageDisplayTime) + "ms");
         lastImageDisplayTime = currentTime;
         SwingUtilities.invokeLater(this::repaint);
     }
@@ -111,9 +125,63 @@ public class VideoPanel extends JPanel {
 
             g2d.drawImage(bufferedImage, x, y, scaledWidth, scaledHeight, null);
             g2d.dispose();
-            System.out.println("Image painted. Size: " + scaledWidth + "x" + scaledHeight);
+//            System.out.println("Image painted. Size: " + scaledWidth + "x" + scaledHeight);
         } else {
             System.out.println("No image to paint");
+        }
+    }
+
+    private void toggleFullscreen() {
+        Window window = SwingUtilities.getWindowAncestor(this);
+        if (window instanceof JFrame) {
+            JFrame frame = (JFrame) window;
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            GraphicsDevice gd = ge.getDefaultScreenDevice();
+
+            if (frame.isUndecorated()) {
+                exitFullscreen(frame, gd);
+            } else {
+                lastWindowSize = frame.getSize();
+                enterFullscreen(frame, gd);
+            }
+
+            // Ensure focus is set back to the panel
+            SwingUtilities.invokeLater(this::requestFocusInWindow);
+            updateComponentPositions();
+        }
+    }
+
+    private void exitFullscreen() {
+        System.out.println("exitFullscreen() called"); // Debug print
+        Window window = SwingUtilities.getWindowAncestor(this);
+        if (window instanceof JFrame) {
+            JFrame frame = (JFrame) window;
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            GraphicsDevice gd = ge.getDefaultScreenDevice();
+
+            if (frame.isUndecorated()) {
+                exitFullscreen(frame, gd);
+                requestFocusInWindow();
+                updateComponentPositions();
+            }
+        }
+    }
+
+    private void enterFullscreen(JFrame frame, GraphicsDevice gd) {
+        frame.dispose();
+        frame.setUndecorated(true);
+        gd.setFullScreenWindow(frame);
+    }
+
+    private void exitFullscreen(JFrame frame, GraphicsDevice gd) {
+        gd.setFullScreenWindow(null);
+        frame.dispose();
+        frame.setUndecorated(false);
+        frame.setVisible(true);
+        if (lastWindowSize != null) {
+            frame.setSize(lastWindowSize);
+        } else {
+            frame.pack();
         }
     }
 
@@ -135,6 +203,7 @@ public class VideoPanel extends JPanel {
                     ((Timer)e.getSource()).stop();
                     countdownLabel.setText("");
                     takePhoto();
+                    SwingUtilities.invokeLater(VideoPanel.this::requestFocusInWindow); // Request focus after countdown
                 }
             }
         });

@@ -2,11 +2,7 @@ package streamviewer;
 
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyAdapter;
 import javax.swing.JFrame;
-import java.awt.GraphicsEnvironment;
-import java.awt.GraphicsDevice;
 
 public class LumixStreamViewer {
 
@@ -52,17 +48,7 @@ public class LumixStreamViewer {
         window.setSize(800, 600);  // Set a default size
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         window.setVisible(true);
-        videoPanel.requestFocusInWindow();
-
-        // Add key listener for fullscreen toggle
-        window.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_F11) {
-                    toggleFullscreen();
-                }
-            }
-        });
+//        videoPanel.requestFocusInWindow();
 
         window.addWindowListener(new WindowAdapter() {
             @Override
@@ -77,24 +63,5 @@ public class LumixStreamViewer {
                 System.exit(0);
             }
         });
-    }
-
-    private static void toggleFullscreen() {
-        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        GraphicsDevice gd = ge.getDefaultScreenDevice();
-
-        if (!isFullscreen) {
-            window.dispose();
-            window.setUndecorated(true);
-            gd.setFullScreenWindow(window);
-        } else {
-            gd.setFullScreenWindow(null);
-            window.dispose();
-            window.setUndecorated(false);
-            window.setVisible(true);
-        }
-
-        isFullscreen = !isFullscreen;
-        videoPanel.updateComponentPositions(); // Update component positions after toggling fullscreen
     }
 }
