@@ -2,7 +2,7 @@
 
 This fork offers a simple photobox user interface to be interacted with via touchscreen and uses a Lumix camera. 
 
-It is based on an fork of an unofficial counterpart of the official [Panasonic Lumix Link mobile app](https://play.google.com/store/apps/details?id=jp.co.panasonic.lumix_link.activity&hl=cs). With this application, you can remotely control your Lumix camera, take pictures, record video, adjust capture settings and so on. 
+It is based on an fork of an unofficial counterpart of the official [Panasonic Lumix Link mobile app](https://play.google.com/store/apps/details?id=jp.co.panasonic.lumix_link.activity&hl=cs). With this application, you can remotely control your Lumix camera, take pictures, record video and adjust capture settings. 
 
 # Dependencies
 
