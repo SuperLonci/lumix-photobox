@@ -14,10 +14,13 @@ public class VideoPanel extends JPanel {
     private JButton photoButton;
     private JLabel countdownLabel;
     private Timer countdownTimer;
-    private int countdownSeconds = 3;
+    private int countdownSeconds = 0;
     private Dimension lastWindowSize;
     private BufferedImage smileyImage;
     private boolean showingSmiley = false;
+    private float countdownAlpha = 1.0f;
+    private float countdownScale = 1.0f;
+    private Timer smileyTimer;
 
     public VideoPanel() {
         setLayout(null); // Use null layout for absolute positioning
@@ -66,27 +69,32 @@ public class VideoPanel extends JPanel {
         });
         add(photoButton);
 
-        // Create the countdown label
-        countdownLabel = new JLabel("");
-        countdownLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        countdownLabel.setVerticalAlignment(SwingConstants.CENTER);
-        countdownLabel.setFont(new Font("Arial", Font.BOLD, 300));
-        countdownLabel.setForeground(Color.WHITE);
-        add(countdownLabel);
+        updateComponentPositions();
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+        Graphics2D g2d = (Graphics2D) g;
+
+        // Enable antialiasing for smoother rendering
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
         if (bufferedImage != null) {
-            drawFittedImage(g, bufferedImage);
+            drawFittedImage(g2d, bufferedImage);
         }
+
         if (showingSmiley && smileyImage != null) {
-            drawFittedImage(g, smileyImage);
+            System.out.println("Attempting to draw smiley image");
+            drawFittedImage(g2d, smileyImage);
+        }
+
+        if (countdownSeconds > 0 && countdownSeconds <= 3) {
+            drawCountdown(g2d);
         }
     }
 
-    private void drawFittedImage(Graphics g, BufferedImage image) {
+    private void drawFittedImage(Graphics2D g2d, BufferedImage image) {
         int panelWidth = getWidth();
         int panelHeight = getHeight();
         int imageWidth = image.getWidth();
@@ -96,7 +104,47 @@ public class VideoPanel extends JPanel {
         int scaledHeight = (int) (imageHeight * scale);
         int x = (panelWidth - scaledWidth) / 2;
         int y = (panelHeight - scaledHeight) / 2;
-        g.drawImage(image, x, y, scaledWidth, scaledHeight, null);
+        g2d.drawImage(image, x, y, scaledWidth, scaledHeight, null);
+        System.out.println("Image drawn at: " + x + "," + y + " with dimensions: " + scaledWidth + "x" + scaledHeight);
+    }
+
+    private void drawCountdown(Graphics2D g2d) {
+        String text = String.valueOf(countdownSeconds);
+        Font originalFont = new Font("Arial", Font.BOLD, 300);
+        Font scaledFont = originalFont.deriveFont(originalFont.getSize() * countdownScale);
+        g2d.setFont(scaledFont);
+
+        FontMetrics fm = g2d.getFontMetrics();
+        int textWidth = fm.stringWidth(text);
+        int textHeight = fm.getAscent();
+        int x = (getWidth() - textWidth) / 2;
+        int y = (getHeight() + textHeight) / 2;
+
+        // Create a gradual color change effect
+        Color startColor = new Color(255, 69, 58); // Red
+        Color endColor = new Color(255, 215, 0);   // Gold
+        float fraction = (3 - countdownSeconds) / 2f;
+        Color currentColor = interpolateColor(startColor, endColor, fraction);
+
+        // Apply fade-out effect
+        Composite originalComposite = g2d.getComposite();
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, countdownAlpha));
+
+        // Draw the text with a subtle shadow effect
+        g2d.setColor(new Color(0, 0, 0, 100));
+        g2d.drawString(text, x + 5, y + 5);
+
+        g2d.setColor(currentColor);
+        g2d.drawString(text, x, y);
+
+        g2d.setComposite(originalComposite);
+    }
+
+    private Color interpolateColor(Color c1, Color c2, float fraction) {
+        int red = (int) (c1.getRed() + fraction * (c2.getRed() - c1.getRed()));
+        int green = (int) (c1.getGreen() + fraction * (c2.getGreen() - c1.getGreen()));
+        int blue = (int) (c1.getBlue() + fraction * (c2.getBlue() - c1.getBlue()));
+        return new Color(red, green, blue);
     }
 
     void updateComponentPositions() {
@@ -106,9 +154,6 @@ public class VideoPanel extends JPanel {
         // Position the photo button at the bottom right
         int buttonSize = 200;
         photoButton.setBounds(width - buttonSize - 10, height - buttonSize - 10, buttonSize, buttonSize);
-
-        // Position the countdown label in the center
-        countdownLabel.setBounds(0, 0, width, height);
 
         // Ensure the panel is repainted after updating positions
         revalidate();
@@ -122,40 +167,64 @@ public class VideoPanel extends JPanel {
 
     private void startCountdown() {
         if (countdownTimer != null && countdownTimer.isRunning()) {
-            return; // Countdown is already in progress
+            return;
         }
         countdownSeconds = 3;
         showingSmiley = false;
-        updateCountdownLabel();
-        countdownTimer = new Timer(1000, e -> {
-            countdownSeconds--;
-            if (countdownSeconds > 0) {
-                updateCountdownLabel();
-            } else if (countdownSeconds == 0) {
-                showSmileyImage();
-            } else {
-                ((Timer) e.getSource()).stop();
-                takePhoto();
-                SwingUtilities.invokeLater(this::requestFocusInWindow);
+        countdownAlpha = 1.0f;
+        countdownScale = 1.0f;
+
+        countdownTimer = new Timer(16, new ActionListener() {
+            private long startTime = System.currentTimeMillis();
+            private int lastSecond = 3;
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                long currentTime = System.currentTimeMillis();
+                float elapsedSeconds = (currentTime - startTime) / 1000f;
+                countdownSeconds = 3 - (int) elapsedSeconds;
+
+                if (countdownSeconds != lastSecond) {
+                    countdownAlpha = 1.0f;
+                    countdownScale = 1.0f;
+                    lastSecond = countdownSeconds;
+                } else {
+                    float fractionOfSecond = elapsedSeconds % 1;
+                    countdownAlpha = Math.max(0, 1 - fractionOfSecond);
+                    countdownScale = 1 + (0.5f * fractionOfSecond);
+                }
+
+                if (countdownSeconds > 0) {
+                    repaint();
+                } else {
+                    ((Timer) e.getSource()).stop();
+                    showSmileyImage();
+                }
             }
         });
         countdownTimer.start();
     }
 
-    private void updateCountdownLabel() {
-        countdownLabel.setText(String.valueOf(countdownSeconds));
-        repaint();
-    }
-
     private void showSmileyImage() {
+        System.out.println("showSmileyImage called");
         showingSmiley = true;
-        countdownLabel.setText("");
         repaint();
+
+        if (smileyTimer != null && smileyTimer.isRunning()) {
+            smileyTimer.stop();
+        }
+        smileyTimer = new Timer(1000, e -> {
+            System.out.println("Smiley timer finished");
+            showingSmiley = false;
+            ((Timer) e.getSource()).stop();
+            takePhoto();
+            SwingUtilities.invokeLater(this::requestFocusInWindow);
+        });
+        smileyTimer.setRepeats(false);
+        smileyTimer.start();
     }
 
     private void takePhoto() {
-        showingSmiley = false;
-        countdownLabel.setText("");
         repaint();
         // TODO: Implement photo-taking functionality
         System.out.println("Photo taken!");
@@ -213,10 +282,13 @@ public class VideoPanel extends JPanel {
     }
 
     public static void main(String[] args) {
-        JFrame frame = new JFrame("Video Panel");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 600);
-        frame.add(new VideoPanel());
-        frame.setVisible(true);
+        SwingUtilities.invokeLater(() -> {
+            JFrame frame = new JFrame("Video Panel");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setSize(800, 600);
+            VideoPanel videoPanel = new VideoPanel();
+            frame.add(videoPanel);
+            frame.setVisible(true);
+        });
     }
 }
