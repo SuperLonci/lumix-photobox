@@ -85,7 +85,7 @@ public class VideoPanel extends JPanel {
         }
 
         if (showingSmiley && smileyImage != null) {
-            System.out.println("Attempting to draw smiley image");
+//            System.out.println("Attempting to draw smiley image");
             drawFittedImage(g2d, smileyImage);
         }
 
@@ -105,7 +105,7 @@ public class VideoPanel extends JPanel {
         int x = (panelWidth - scaledWidth) / 2;
         int y = (panelHeight - scaledHeight) / 2;
         g2d.drawImage(image, x, y, scaledWidth, scaledHeight, null);
-        System.out.println("Image drawn at: " + x + "," + y + " with dimensions: " + scaledWidth + "x" + scaledHeight);
+//        System.out.println("Image drawn at: " + x + "," + y + " with dimensions: " + scaledWidth + "x" + scaledHeight);
     }
 
     private void drawCountdown(Graphics2D g2d) {
@@ -214,7 +214,7 @@ public class VideoPanel extends JPanel {
             smileyTimer.stop();
         }
         smileyTimer = new Timer(1000, e -> {
-            System.out.println("Smiley timer finished");
+//            System.out.println("Smiley timer finished");
             showingSmiley = false;
             ((Timer) e.getSource()).stop();
             takePhoto();

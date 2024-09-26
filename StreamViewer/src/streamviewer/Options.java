@@ -1,63 +1,49 @@
 package streamviewer;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import javax.swing.*;
+import java.awt.*;
 
-/**
- * The options used in the LumixStreamViewer
- */
 public class Options {
-
     private final String cameraIp;
-
     private final int cameraNetMaskBitSize;
+    private final String viewerType;
 
-    private Options(String cameraIp, int cameraNetMaskBitSize) {
+    private Options(String cameraIp, int cameraNetMaskBitSize, String viewerType) {
         this.cameraIp = cameraIp;
         this.cameraNetMaskBitSize = cameraNetMaskBitSize;
+        this.viewerType = viewerType;
     }
 
-    /**
-     * Either reads the options from the program arguments, or via standard input.
-     *
-     * @param args the program arguments
-     * @return the LumixStreamViewer options
-     */
-    public static Options read(String[] args) {
-        String cameraIp = "192.168.54.1";
-        int cameraNetMaskBitSize = 24;
+    public static Options read() {
+        JTextField ipField = new JTextField("192.168.54.1", 15);
+        JTextField maskField = new JTextField("24", 5);
+        String[] viewerTypes = {"mock", "real"};
+        JComboBox<String> viewerTypeCombo = new JComboBox<>(viewerTypes);
 
-        if (args.length == 2) {
-            cameraIp = args[0];
+        JPanel panel = new JPanel(new GridLayout(0, 2));
+        panel.add(new JLabel("Camera IP address:"));
+        panel.add(ipField);
+        panel.add(new JLabel("Camera IP netmask size:"));
+        panel.add(maskField);
+        panel.add(new JLabel("Viewer Type:"));
+        panel.add(viewerTypeCombo);
+
+        int result = JOptionPane.showConfirmDialog(null, panel,
+                "Enter Camera Settings", JOptionPane.OK_CANCEL_OPTION);
+        if (result == JOptionPane.OK_OPTION) {
+            String cameraIp = ipField.getText();
+            int cameraNetMaskBitSize;
             try {
-                cameraNetMaskBitSize = Integer.parseInt(args[1]);
+                cameraNetMaskBitSize = Integer.parseInt(maskField.getText());
             } catch (NumberFormatException e) {
-                e.printStackTrace();
+                cameraNetMaskBitSize = 24;
             }
+            String viewerType = (String) viewerTypeCombo.getSelectedItem();
+            return new Options(cameraIp, cameraNetMaskBitSize, viewerType);
         } else {
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
-                // camera IP
-                System.out.print("Camera IP address [192.168.54.1]: ");
-                cameraIp = in.readLine();
-                if (cameraIp.length() == 0) {
-                    cameraIp = "192.168.54.1";
-                }
-
-                // camera netmask
-                System.out.print("Camera IP netmask size [24]: ");
-                String mask = in.readLine();
-                if (mask.length() > 0) {
-                    cameraNetMaskBitSize = Integer.parseInt(mask);
-                } else {
-                    cameraNetMaskBitSize = 24;
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            System.exit(0);
+            return null;
         }
-
-        return new Options(cameraIp, cameraNetMaskBitSize);
     }
 
     public String getCameraIp() {
@@ -66,5 +52,9 @@ public class Options {
 
     public int getCameraNetMaskBitSize() {
         return cameraNetMaskBitSize;
+    }
+
+    public String getViewerType() {
+        return viewerType;
     }
 }

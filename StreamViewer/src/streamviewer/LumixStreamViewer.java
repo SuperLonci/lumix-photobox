@@ -12,23 +12,24 @@ public class LumixStreamViewer {
     private static VideoPanel videoPanel;
 
     public static void main(String[] args) {
-        Options options = Options.read(args);
+        Options options = Options.read();
+        if (options == null) {
+            return;  // User cancelled the input dialog
+        }
+
         String cameraIp = options.getCameraIp();
         int cameraNetMaskBitSize = options.getCameraNetMaskBitSize();
+        String viewerType = options.getViewerType();
 
         videoPanel = new VideoPanel();
 
         StreamViewerInterface streamViewer;
-
-        // Select the stream viewer based on a command-line argument or system property
-        String viewerType = System.getProperty("viewer.type", "mock");
 
         switch (viewerType) {
             case "mock":
                 streamViewer = new MockStreamViewer("./mockImage.png");
                 break;
             case "real":
-            default:
                 try {
                     streamViewer = new StreamViewer(videoPanel::displayNewImage, cameraIp, cameraNetMaskBitSize);
                 } catch (Exception e) {
@@ -37,6 +38,10 @@ public class LumixStreamViewer {
                     return;
                 }
                 break;
+            default:
+                System.out.println("Invalid viewer type selected.");
+                System.exit(1);
+                return;
         }
 
         streamViewer.setImageConsumer(videoPanel::displayNewImage);
@@ -48,7 +53,6 @@ public class LumixStreamViewer {
         window.setSize(800, 600);  // Set a default size
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         window.setVisible(true);
-//        videoPanel.requestFocusInWindow();
 
         window.addWindowListener(new WindowAdapter() {
             @Override
