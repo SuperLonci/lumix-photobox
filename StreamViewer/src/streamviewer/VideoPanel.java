@@ -67,22 +67,12 @@ public class VideoPanel extends JPanel {
         add(photoButton);
 
         // Create the countdown label
-        countdownLabel = createCountdownLabel();
+        countdownLabel = new JLabel("");
+        countdownLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        countdownLabel.setVerticalAlignment(SwingConstants.CENTER);
+        countdownLabel.setFont(new Font("Arial", Font.BOLD, 300));
+        countdownLabel.setForeground(Color.WHITE);
         add(countdownLabel);
-    }
-
-    private JLabel createCountdownLabel() {
-        return new JLabel("") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                if (showingSmiley && smileyImage != null) {
-                    drawFittedImage(g, smileyImage);
-                } else {
-                    drawCountdown(g);
-                }
-            }
-        };
     }
 
     @Override
@@ -90,6 +80,9 @@ public class VideoPanel extends JPanel {
         super.paintComponent(g);
         if (bufferedImage != null) {
             drawFittedImage(g, bufferedImage);
+        }
+        if (showingSmiley && smileyImage != null) {
+            drawFittedImage(g, smileyImage);
         }
     }
 
@@ -104,20 +97,6 @@ public class VideoPanel extends JPanel {
         int x = (panelWidth - scaledWidth) / 2;
         int y = (panelHeight - scaledHeight) / 2;
         g.drawImage(image, x, y, scaledWidth, scaledHeight, null);
-    }
-
-    private void drawCountdown(Graphics g) {
-        String text = countdownLabel.getText();
-        Font font = new Font("Arial", Font.BOLD, 300);
-        g.setFont(font);
-        FontMetrics fm = g.getFontMetrics();
-        int textWidth = fm.stringWidth(text);
-        int textHeight = fm.getAscent();
-        int x = (getWidth() - textWidth) / 2;
-        int y = (getHeight() + textHeight) / 2;
-
-        g.setColor(Color.WHITE);
-        g.drawString(text, x, y);
     }
 
     void updateComponentPositions() {
@@ -165,24 +144,22 @@ public class VideoPanel extends JPanel {
 
     private void updateCountdownLabel() {
         countdownLabel.setText(String.valueOf(countdownSeconds));
-        countdownLabel.repaint();
+        repaint();
     }
 
     private void showSmileyImage() {
         showingSmiley = true;
         countdownLabel.setText("");
-        countdownLabel.repaint();
+        repaint();
     }
 
     private void takePhoto() {
         showingSmiley = false;
         countdownLabel.setText("");
-        countdownLabel.repaint();
+        repaint();
         // TODO: Implement photo-taking functionality
         System.out.println("Photo taken!");
     }
-
-
 
     // Fullscreen
     private void toggleFullscreen() {
