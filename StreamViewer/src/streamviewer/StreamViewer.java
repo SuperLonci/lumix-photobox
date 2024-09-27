@@ -89,11 +89,15 @@ public class StreamViewer implements StreamViewerInterface {
     private BufferedImage retrieveImage(DatagramPacket receivedPacket) {
         final byte[] videoData = getImageData(receivedPacket);
 
+        System.out.println("Extracted video data. Size: " + videoData.length + " bytes");
+
         BufferedImage img = null;
         try {
             img = ImageIO.read(new ByteArrayInputStream(videoData));
             if (img == null) {
                 System.out.println("ImageIO.read returned null. Data length: " + videoData.length);
+                // Print first few bytes of the data for debugging
+                System.out.println("First 10 bytes: " + Arrays.toString(Arrays.copyOf(videoData, Math.min(10, videoData.length))));
             }
         } catch (IOException e) {
             System.err.println("Error while reading image data: " + e.getMessage());
@@ -111,8 +115,8 @@ public class StreamViewer implements StreamViewerInterface {
      */
     private byte[] getImageData(DatagramPacket receivedPacket) {
         final byte[] udpData = receivedPacket.getData();
-        // The camera adds some kind of header to each packet, which we need to ignore
         int videoDataStart = getImageDataStart(receivedPacket, udpData);
+        System.out.println("Image data starts at byte: " + videoDataStart);
         return Arrays.copyOfRange(udpData, videoDataStart, receivedPacket.getLength());
     }
 
@@ -134,6 +138,8 @@ public class StreamViewer implements StreamViewerInterface {
     public void run() {
         byte[] udpPacketBuffer = new byte[35000];
 
+        System.out.println("StreamViewer started. Listening for packets...");
+
         while (!Thread.interrupted()) {
             try {
                 final DatagramPacket receivedPacket = new DatagramPacket(udpPacketBuffer, udpPacketBuffer.length,
@@ -143,7 +149,7 @@ public class StreamViewer implements StreamViewerInterface {
 
                 packetCount++;
                 long currentTime = System.currentTimeMillis();
-                if (currentTime - lastLogTime > 5000) { // Log every 5 seconds
+                if (currentTime - lastLogTime > 5000) {
                     System.out.println("Received " + packetCount + " packets in the last 5 seconds");
                     packetCount = 0;
                     lastLogTime = currentTime;
@@ -152,9 +158,10 @@ public class StreamViewer implements StreamViewerInterface {
                 imageExecutor.submit(() -> {
                     BufferedImage newImage = retrieveImage(receivedPacket);
                     if (newImage != null) {
+                        System.out.println("Successfully retrieved image. Size: " + newImage.getWidth() + "x" + newImage.getHeight());
                         imageConsumer.accept(newImage);
                     } else {
-                        System.out.println("Failed to retrieve image from packet");
+                        System.out.println("Failed to retrieve image from packet. Packet size: " + receivedPacket.getLength());
                     }
                 });
 
@@ -163,6 +170,7 @@ public class StreamViewer implements StreamViewerInterface {
             }
         }
 
+        System.out.println("StreamViewer stopped.");
         imageExecutor.shutdown();
         localUdpSocket.close();
     }
