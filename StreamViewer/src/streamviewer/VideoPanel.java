@@ -110,15 +110,19 @@ public class VideoPanel extends JPanel {
 
     private void drawCountdown(Graphics2D g2d) {
         String text = String.valueOf(countdownSeconds);
-        Font originalFont = new Font("Arial", Font.BOLD, 300);
-        Font scaledFont = originalFont.deriveFont(originalFont.getSize() * countdownScale);
-        g2d.setFont(scaledFont);
+
+        // Calculate the font size to be 90% of the screen height
+        int fontSize = (int)(getHeight() * 0.9);
+        Font font = new Font("Arial", Font.BOLD, fontSize);
+        g2d.setFont(font);
 
         FontMetrics fm = g2d.getFontMetrics();
         int textWidth = fm.stringWidth(text);
-        int textHeight = fm.getAscent();
+        int textHeight = fm.getHeight();
+
+        // Center the text both horizontally and vertically
         int x = (getWidth() - textWidth) / 2;
-        int y = (getHeight() + textHeight) / 2;
+        int y = (getHeight() - textHeight) / 2 + fm.getAscent();
 
         // Create a gradual color change effect
         Color startColor = new Color(255, 69, 58); // Red
