@@ -2,7 +2,7 @@ package streamviewer;
 
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import javax.swing.JFrame;
+import javax.swing.*;
 
 public class LumixStreamViewer {
 
@@ -20,35 +20,59 @@ public class LumixStreamViewer {
         String cameraIp = options.getCameraIp();
         int cameraNetMaskBitSize = options.getCameraNetMaskBitSize();
         String viewerType = options.getViewerType();
+        int webcamIndex = options.getWebcamIndex();
 
         videoPanel = new VideoPanel();
 
-        StreamViewerInterface streamViewer;
+        StreamViewerInterface streamViewer = null;
+        boolean viewerCreated = false;
 
-        switch (viewerType) {
-            case "mock":
-                streamViewer = new MockStreamViewer("./mockImage.png");
-                break;
-            case "real":
-                try {
-                    streamViewer = new StreamViewer(videoPanel::displayNewImage, cameraIp, cameraNetMaskBitSize);
-                } catch (Exception e) {
-                    System.out.println("Error creating StreamViewer: " + e.getMessage());
-                    System.exit(1);
-                    return;
+        while (!viewerCreated) {
+            try {
+                switch (viewerType) {
+                    case "mock":
+                        streamViewer = new MockStreamViewer("./mockImage.png");
+                        break;
+                    case "real":
+                        streamViewer = new StreamViewer(videoPanel::displayNewImage, cameraIp, cameraNetMaskBitSize);
+                        break;
+                    case "webcam":
+                        streamViewer = new WebcamStreamViewer(webcamIndex);
+                        break;
+                    default:
+                        throw new IllegalArgumentException("Invalid viewer type selected.");
                 }
-                break;
-            default:
-                System.out.println("Invalid viewer type selected.");
-                System.exit(1);
-                return;
+                viewerCreated = true;
+            } catch (Exception e) {
+                String errorMessage = "Error creating " + viewerType + " viewer: " + e.getMessage();
+                if (viewerType.equals("webcam")) {
+                    errorMessage += "\n\nPossible reasons for this error:\n" +
+                            "1. No webcam is connected to your system.\n" +
+                            "2. The selected webcam index is incorrect.\n" +
+                            "3. The webcam is being used by another application.\n" +
+                            "4. There are issues with the webcam drivers.\n\n" +
+                            "Please ensure a webcam is connected and try again with a different index (starting from 0).";
+                }
+                errorMessage += "\n\nWould you like to try again with different settings?";
+
+                int response = JOptionPane.showConfirmDialog(null, errorMessage, "Error", JOptionPane.YES_NO_OPTION);
+                if (response != JOptionPane.YES_OPTION) {
+                    System.exit(1);
+                }
+                options = Options.read();
+                if (options == null) {
+                    System.exit(0);
+                }
+                viewerType = options.getViewerType();
+                webcamIndex = options.getWebcamIndex();
+            }
         }
 
         streamViewer.setImageConsumer(videoPanel::displayNewImage);
         streamViewerThread = new Thread(streamViewer);
         streamViewerThread.start();
 
-        window = new JFrame("Lumix Live Stream viewer on " + cameraIp + ":49199");
+        window = new JFrame("Lumix Live Stream viewer");
         window.add(videoPanel);
         window.setSize(800, 600);  // Set a default size
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

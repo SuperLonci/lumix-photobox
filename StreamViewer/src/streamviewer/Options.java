@@ -7,18 +7,21 @@ public class Options {
     private final String cameraIp;
     private final int cameraNetMaskBitSize;
     private final String viewerType;
+    private final int webcamIndex;
 
-    private Options(String cameraIp, int cameraNetMaskBitSize, String viewerType) {
+    private Options(String cameraIp, int cameraNetMaskBitSize, String viewerType, int webcamIndex) {
         this.cameraIp = cameraIp;
         this.cameraNetMaskBitSize = cameraNetMaskBitSize;
         this.viewerType = viewerType;
+        this.webcamIndex = webcamIndex;
     }
 
     public static Options read() {
         JTextField ipField = new JTextField("192.168.54.1", 15);
         JTextField maskField = new JTextField("24", 5);
-        String[] viewerTypes = {"mock", "real"};
+        String[] viewerTypes = {"mock", "real", "webcam"};
         JComboBox<String> viewerTypeCombo = new JComboBox<>(viewerTypes);
+        JTextField webcamIndexField = new JTextField("0", 5);
 
         JPanel panel = new JPanel(new GridLayout(0, 2));
         panel.add(new JLabel("Camera IP address:"));
@@ -27,6 +30,8 @@ public class Options {
         panel.add(maskField);
         panel.add(new JLabel("Viewer Type:"));
         panel.add(viewerTypeCombo);
+        panel.add(new JLabel("Webcam Index:"));
+        panel.add(webcamIndexField);
 
         int result = JOptionPane.showConfirmDialog(null, panel,
                 "Enter Camera Settings", JOptionPane.OK_CANCEL_OPTION);
@@ -39,7 +44,13 @@ public class Options {
                 cameraNetMaskBitSize = 24;
             }
             String viewerType = (String) viewerTypeCombo.getSelectedItem();
-            return new Options(cameraIp, cameraNetMaskBitSize, viewerType);
+            int webcamIndex;
+            try {
+                webcamIndex = Integer.parseInt(webcamIndexField.getText());
+            } catch (NumberFormatException e) {
+                webcamIndex = 0;
+            }
+            return new Options(cameraIp, cameraNetMaskBitSize, viewerType, webcamIndex);
         } else {
             System.exit(0);
             return null;
@@ -56,5 +67,9 @@ public class Options {
 
     public String getViewerType() {
         return viewerType;
+    }
+
+    public int getWebcamIndex() {
+        return webcamIndex;
     }
 }

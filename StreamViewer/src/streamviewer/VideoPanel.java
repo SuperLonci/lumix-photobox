@@ -210,7 +210,7 @@ public class VideoPanel extends JPanel {
     }
 
     private void showSmileyImage() {
-        System.out.println("showSmileyImage called");
+//        System.out.println("showSmileyImage called");
         showingSmiley = true;
         repaint();
 
