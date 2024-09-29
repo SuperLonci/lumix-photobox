@@ -405,10 +405,14 @@ public class VideoPanel extends JPanel {
 
     private void showErrorDialog(String errorMessage) {
         SwingUtilities.invokeLater(() -> {
-            JOptionPane.showMessageDialog(this,
-                    errorMessage,
-                    "Error Taking Photo",
-                    JOptionPane.ERROR_MESSAGE);
+            JOptionPane pane = new JOptionPane(errorMessage, JOptionPane.ERROR_MESSAGE);
+            JDialog dialog = pane.createDialog(this, "Error Taking Photo");
+
+            Timer timer = new Timer(5000, (e) -> dialog.dispose());
+            timer.setRepeats(false);
+            timer.start();
+
+            dialog.setVisible(true);
         });
     }
 
