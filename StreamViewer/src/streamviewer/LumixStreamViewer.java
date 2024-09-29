@@ -22,7 +22,7 @@ public class LumixStreamViewer {
         String viewerType = options.getViewerType();
         int webcamIndex = options.getWebcamIndex();
 
-        videoPanel = new VideoPanel();
+        videoPanel = new VideoPanel(options);
 
         StreamViewerInterface streamViewer = null;
         boolean viewerCreated = false;
