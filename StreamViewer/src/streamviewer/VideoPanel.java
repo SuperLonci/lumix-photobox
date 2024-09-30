@@ -4,7 +4,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferInt;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
@@ -14,7 +13,7 @@ import javax.imageio.ImageIO;
 public class VideoPanel extends JPanel {
 
     private int currentBackgroundMode = 0;
-    private BackgroundEffect[] backgroundEffects;
+    private final BackgroundEffect[] backgroundEffects;
     private Color backgroundColor = Color.WHITE;
 
     private BufferedImage bufferedImage = null;
@@ -28,13 +27,11 @@ public class VideoPanel extends JPanel {
     private Timer smileyTimer;
 
     private final PhotoTaker photoTaker;
-    private final Options options;
     private final ExecutorService executorService;
 
 
     public VideoPanel(Options options) {
         setLayout(null); // Use null layout for absolute positioning
-        this.options = options;
         this.executorService = Executors.newSingleThreadExecutor();
 
         // Initialize background effects
@@ -193,241 +190,6 @@ public class VideoPanel extends JPanel {
         repaint();
     }
 
-//    private void updateExtendedBackground() {
-//        if (bufferedImage == null) return;
-//
-//        int panelWidth = getWidth();
-//        int panelHeight = getHeight();
-//        int imageWidth = bufferedImage.getWidth();
-//        int imageHeight = bufferedImage.getHeight();
-//
-//        // Create a new buffered image for the extended background if needed
-//        if (extendedBackground == null || extendedBackground.getWidth() != panelWidth || extendedBackground.getHeight() != panelHeight) {
-//            extendedBackground = new BufferedImage(panelWidth, panelHeight, BufferedImage.TYPE_INT_RGB);
-//        }
-//
-//        Graphics2D g2d = extendedBackground.createGraphics();
-//
-//        // Draw the original image in the center
-//        int x = (panelWidth - imageWidth) / 2;
-//        int y = (panelHeight - imageHeight) / 2;
-//        g2d.drawImage(bufferedImage, x, y, null);
-//
-//        // Get edge colors
-//        int leftColor = bufferedImage.getRGB(0, imageHeight / 2);
-//        int rightColor = bufferedImage.getRGB(imageWidth - 1, imageHeight / 2);
-//        int topColor = bufferedImage.getRGB(imageWidth / 2, 0);
-//        int bottomColor = bufferedImage.getRGB(imageWidth / 2, imageHeight - 1);
-//
-//        // Create gradients for sides
-//        createHorizontalGradient(g2d, 0, y, x, imageHeight, rightColor, leftColor);
-//        createHorizontalGradient(g2d, x + imageWidth, y, panelWidth - (x + imageWidth), imageHeight, leftColor, rightColor);
-//
-//        // Create gradients for top and bottom
-//        createVerticalGradient(g2d, x, 0, imageWidth, y, bottomColor, topColor);
-//        createVerticalGradient(g2d, x, y + imageHeight, imageWidth, panelHeight - (y + imageHeight), topColor, bottomColor);
-//
-//        // Fill corners
-//        g2d.setColor(new Color(leftColor));
-//        g2d.fillRect(0, 0, x, y);
-//        g2d.setColor(new Color(rightColor));
-//        g2d.fillRect(x + imageWidth, 0, panelWidth - (x + imageWidth), y);
-//        g2d.setColor(new Color(leftColor));
-//        g2d.fillRect(0, y + imageHeight, x, panelHeight - (y + imageHeight));
-//        g2d.setColor(new Color(rightColor));
-//        g2d.fillRect(x + imageWidth, y + imageHeight, panelWidth - (x + imageWidth), panelHeight - (y + imageHeight));
-//
-//        g2d.dispose();
-//    }
-//
-//    private void createHorizontalGradient(Graphics2D g2d, int x, int y, int width, int height, int startColor, int endColor) {
-//        GradientPaint gradient = new GradientPaint(x, y, new Color(startColor), x + width, y, new Color(endColor));
-//        g2d.setPaint(gradient);
-//        g2d.fillRect(x, y, width, height);
-//    }
-//
-//    private void createVerticalGradient(Graphics2D g2d, int x, int y, int width, int height, int startColor, int endColor) {
-//        GradientPaint gradient = new GradientPaint(x, y, new Color(startColor), x, y + height, new Color(endColor));
-//        g2d.setPaint(gradient);
-//        g2d.fillRect(x, y, width, height);
-//    }
-//
-//    private void toggleExtendedBackground() {
-//        extendedBackgroundEnabled = !extendedBackgroundEnabled;
-//        repaint();
-//    }
-
-//    private void updateBlurredBackground(boolean force) {
-//        if (bufferedImage == null) return;
-//
-//        frameCount++;
-//        if (!force && frameCount % UPDATE_INTERVAL != 0) return;
-//
-//        int panelWidth = getWidth();
-//        int panelHeight = getHeight();
-//
-//        // Downscale the image for faster processing
-//        int scaledWidth = panelWidth / 4;
-//        int scaledHeight = panelHeight / 4;
-//
-//        BufferedImage scaledImage = new BufferedImage(scaledWidth, scaledHeight, BufferedImage.TYPE_INT_RGB);
-//        Graphics2D g2d = scaledImage.createGraphics();
-//        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-//        g2d.drawImage(bufferedImage, 0, 0, scaledWidth, scaledHeight, null);
-//        g2d.dispose();
-//
-//        // Apply blur effect using the current blurIntensity
-//        BufferedImage blurred = new BufferedImage(scaledWidth, scaledHeight, BufferedImage.TYPE_INT_RGB);
-//        stackBlur(((DataBufferInt) scaledImage.getRaster().getDataBuffer()).getData(),
-//                ((DataBufferInt) blurred.getRaster().getDataBuffer()).getData(),
-//                scaledWidth, scaledHeight, blurIntensity);
-//
-//        // Extend the outermost pixels
-//        extendOutermostPixels(blurred);
-//
-//        // Scale the blurred image back up to the panel size
-//        blurredBackground = new BufferedImage(panelWidth, panelHeight, BufferedImage.TYPE_INT_RGB);
-//        g2d = blurredBackground.createGraphics();
-//        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-//        g2d.drawImage(blurred, 0, 0, panelWidth, panelHeight, null);
-//        g2d.dispose();
-//
-//        repaint();
-//    }
-//
-//    private void extendOutermostPixels(BufferedImage image) {
-//        int width = image.getWidth();
-//        int height = image.getHeight();
-//
-//        // Extend left and right edges
-//        for (int y = 0; y < height; y++) {
-//            int leftColor = image.getRGB(0, y);
-//            int rightColor = image.getRGB(width - 1, y);
-//
-//            for (int x = 0; x < width; x++) {
-//                if (x < width / 4) {
-//                    image.setRGB(x, y, leftColor);
-//                } else if (x > 3 * width / 4) {
-//                    image.setRGB(x, y, rightColor);
-//                }
-//            }
-//        }
-//
-//        // Extend top and bottom edges
-//        for (int x = 0; x < width; x++) {
-//            int topColor = image.getRGB(x, 0);
-//            int bottomColor = image.getRGB(x, height - 1);
-//
-//            for (int y = 0; y < height; y++) {
-//                if (y < height / 4) {
-//                    image.setRGB(x, y, topColor);
-//                } else if (y > 3 * height / 4) {
-//                    image.setRGB(x, y, bottomColor);
-//                }
-//            }
-//        }
-//    }
-//
-//    public void setBlurIntensity(int intensity) {
-//        this.blurIntensity = Math.max(1, Math.min(intensity, 100));
-//        updateBlurredBackground(true);
-//    }
-
-//    public void setBackgroundColor(Color color) {
-//        this.backgroundColor = color;
-//        repaint();
-//    }
-//
-//    private void changeBackgroundColor() {
-//        Color newColor = JColorChooser.showDialog(this, "Choose Background Color", backgroundColor);
-//        if (newColor != null) {
-//            setBackgroundColor(newColor);
-//        }
-//    }
-//
-//    public int getBlurIntensity() {
-//        return this.blurIntensity;
-//    }
-
-//    public void displayNewImage(BufferedImage image) {
-//        this.bufferedImage = image;
-//        updateBlurredBackground(false);
-//        SwingUtilities.invokeLater(this::repaint);
-//    }
-//
-//    private void toggleBlurredBackground() {
-//        blurredBackgroundEnabled = !blurredBackgroundEnabled;
-//        repaint();
-//    }
-
-//    // Stack Blur Algorithm by Mario Klingemann <mario@quasimondo.com>
-//    private void stackBlur(int[] src, int[] dst, int w, int h, int radius) {
-//        int[] r = new int[w * h];
-//        int[] g = new int[w * h];
-//        int[] b = new int[w * h];
-//
-//        for (int i = 0; i < src.length; i++) {
-//            r[i] = (src[i] >> 16) & 0xff;
-//            g[i] = (src[i] >> 8) & 0xff;
-//            b[i] = src[i] & 0xff;
-//        }
-//
-//        int x, y, xp, yp, i;
-//        int sp;
-//        int rsum, gsum, bsum, num;
-//
-//        for (y = 0; y < h; y++) {
-//            rsum = gsum = bsum = 0;
-//            for (i = -radius; i <= radius; i++) {
-//                yp = Math.max(0, Math.min(y + i, h - 1));
-//                sp = yp * w;
-//                rsum += r[sp];
-//                gsum += g[sp];
-//                bsum += b[sp];
-//            }
-//            for (x = 0; x < w; x++) {
-//                r[y * w + x] = rsum / (radius * 2 + 1);
-//                g[y * w + x] = gsum / (radius * 2 + 1);
-//                b[y * w + x] = bsum / (radius * 2 + 1);
-//
-//                if (y == 0) continue;
-//
-//                xp = Math.max(0, Math.min(x + radius + 1, w - 1));
-//                yp = Math.max(0, Math.min(y - radius, h - 1));
-//
-//                rsum += r[yp * w + xp] - r[yp * w + Math.max(0, x - radius)];
-//                gsum += g[yp * w + xp] - g[yp * w + Math.max(0, x - radius)];
-//                bsum += b[yp * w + xp] - b[yp * w + Math.max(0, x - radius)];
-//            }
-//        }
-//
-//        for (x = 0; x < w; x++) {
-//            rsum = gsum = bsum = 0;
-//            for (i = -radius; i <= radius; i++) {
-//                xp = Math.max(0, Math.min(x + i, w - 1));
-//                rsum += r[xp];
-//                gsum += g[xp];
-//                bsum += b[xp];
-//            }
-//            for (y = 0; y < h; y++) {
-//                dst[y * w + x] = (0xff << 24) | (clamp(rsum / (radius * 2 + 1)) << 16) | (clamp(gsum / (radius * 2 + 1)) << 8) | clamp(bsum / (radius * 2 + 1));
-//
-//                if (x == 0) continue;
-//
-//                xp = Math.max(0, Math.min(x + radius + 1, w - 1));
-//                yp = Math.max(0, Math.min(y - radius, h - 1));
-//
-//                rsum += r[yp * w + xp] - r[Math.max(0, y - radius) * w + x];
-//                gsum += g[yp * w + xp] - g[Math.max(0, y - radius) * w + x];
-//                bsum += b[yp * w + xp] - b[Math.max(0, y - radius) * w + x];
-//            }
-//        }
-//    }
-//
-//    private int clamp(int v) {
-//        return v > 255 ? 255 : (v < 0 ? 0 : v);
-//    }
-
     public void displayNewImage(BufferedImage image) {
         this.bufferedImage = image;
         for (BackgroundEffect effect : backgroundEffects) {
@@ -449,8 +211,6 @@ public class VideoPanel extends JPanel {
         repaint();
     }
 
-
-
     private void startCountdown() {
         if (countdownTimer != null && countdownTimer.isRunning()) {
             return;
@@ -460,7 +220,7 @@ public class VideoPanel extends JPanel {
         countdownAlpha = 1.0f;
 
         countdownTimer = new Timer(16, new ActionListener() {
-            private long startTime = System.currentTimeMillis();
+            private final long startTime = System.currentTimeMillis();
             private int lastSecond = 3;
 
             @Override
@@ -511,16 +271,14 @@ public class VideoPanel extends JPanel {
         repaint();
         photoButton.setEnabled(false); // Disable the button while taking a photo
         executorService.submit(() -> {
-            photoTaker.takePhoto().thenAccept(result -> {
-                SwingUtilities.invokeLater(() -> {
-                    photoButton.setEnabled(true); // Re-enable the button
-                    if (result.isSuccess()) {
-                        System.out.println("Photo taken successfully!");
-                    } else {
-                        showErrorDialog(result.getErrorMessage());
-                    }
-                });
-            });
+            photoTaker.takePhoto().thenAccept(result -> SwingUtilities.invokeLater(() -> {
+                photoButton.setEnabled(true); // Re-enable the button
+                if (result.isSuccess()) {
+                    System.out.println("Photo taken successfully!");
+                } else {
+                    showErrorDialog(result.getErrorMessage());
+                }
+            }));
         });
     }
 
@@ -529,7 +287,7 @@ public class VideoPanel extends JPanel {
             JOptionPane pane = new JOptionPane(errorMessage, JOptionPane.ERROR_MESSAGE);
             JDialog dialog = pane.createDialog(this, "Error Taking Photo");
 
-            Timer timer = new Timer(5000, (e) -> dialog.dispose());
+            Timer timer = new Timer(5000, (_) -> dialog.dispose());
             timer.setRepeats(false);
             timer.start();
 
@@ -537,15 +295,10 @@ public class VideoPanel extends JPanel {
         });
     }
 
-    public void shutdown() {
-        executorService.shutdown();
-    }
-
     // Fullscreen
     private void toggleFullscreen() {
         Window window = SwingUtilities.getWindowAncestor(this);
-        if (window instanceof JFrame) {
-            JFrame frame = (JFrame) window;
+        if (window instanceof JFrame frame) {
             GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
             if (frame.isUndecorated()) {
                 exitFullscreen(frame, gd);
@@ -561,8 +314,7 @@ public class VideoPanel extends JPanel {
     private void exitFullscreen() {
         System.out.println("exitFullscreen() called"); // Debug print
         Window window = SwingUtilities.getWindowAncestor(this);
-        if (window instanceof JFrame) {
-            JFrame frame = (JFrame) window;
+        if (window instanceof JFrame frame) {
             GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
             GraphicsDevice gd = ge.getDefaultScreenDevice();
 
