@@ -12,6 +12,8 @@ public class LumixStreamViewer {
     private static VideoPanel videoPanel;
 
     public static void main(String[] args) {
+        System.load(System.getProperty("user.dir") + "/lib/opencv_java4100.dll");  // For Windows
+
         Options options = Options.read();
         if (options == null) {
             return;  // User cancelled the input dialog
@@ -72,7 +74,7 @@ public class LumixStreamViewer {
         streamViewerThread = new Thread(streamViewer);
         streamViewerThread.start();
 
-        window = new JFrame("Lumix Live Stream viewer");
+        window = new JFrame("Lumix Photobox");
         window.add(videoPanel);
         window.setSize(800, 600);  // Set a default size
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

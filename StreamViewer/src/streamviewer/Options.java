@@ -19,7 +19,7 @@ public class Options {
     public static Options read() {
         JTextField ipField = new JTextField("192.168.54.1", 15);
         JTextField maskField = new JTextField("24", 5);
-        String[] viewerTypes = {"mock", "real", "webcam"};
+        String[] viewerTypes = {"webcam", "real", "mock" };
         JComboBox<String> viewerTypeCombo = new JComboBox<>(viewerTypes);
         JTextField webcamIndexField = new JTextField("0", 5);
 

@@ -6,6 +6,7 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.imageio.ImageIO;
@@ -84,12 +85,16 @@ public class VideoPanel extends JPanel {
             }
         });
 
-        // Load the smiley image
-        try {
-            smileyImage = ImageIO.read(new File("./src/streamviewer/partySmiley.png"));
+        // Load the smiley image from the resources folder
+        try (InputStream stream = getClass().getResourceAsStream("/partySmiley.png")) {
+            if (stream == null) {
+                System.err.println("Failed to load partySmiley.png. Make sure it exists in the resources folder.");
+            } else {
+                smileyImage = ImageIO.read(stream);
+            }
         } catch (IOException e) {
             e.printStackTrace();
-            System.err.println("Failed to load partySmiley.png. Make sure it exists in the correct directory.");
+            System.err.println("Failed to load partySmiley.png.");
         }
 
         updateComponentPositions();
