@@ -36,6 +36,8 @@ public class VideoPanel extends JPanel {
     private final CameraStateMonitor cameraStateMonitor;
     private boolean showInfoPanel = false;
 
+    private final LedController ledController;
+
     public VideoPanel(Options options) {
         setLayout(null); // Use null layout for absolute positioning
         this.executorService = Executors.newSingleThreadExecutor();
@@ -80,6 +82,9 @@ public class VideoPanel extends JPanel {
         cameraStateMonitor = new CameraStateMonitor(options, this::updateInfoPanel);
         cameraStateMonitor.start();
 
+        // Initialize LedController
+        ledController = new LedController(options);
+
         // Set up key listener for Enter, Esc, F, and B keys
         setFocusable(true);
         addKeyListener(new KeyAdapter() {
@@ -98,6 +103,13 @@ public class VideoPanel extends JPanel {
                 } else if (e.getKeyCode() == KeyEvent.VK_I) {
                     showInfoPanel = !showInfoPanel;
                     updateInfoPanelVisibility();
+                } else if (e.getKeyCode() == KeyEvent.VK_L) {
+                    ledController.cycleMode();
+                } else if (e.getKeyCode() == KeyEvent.VK_H) {
+                    Window window = SwingUtilities.getWindowAncestor(VideoPanel.this);
+                    if (window instanceof JFrame) {
+                        ledController.showBrightnessDialog((JFrame) window);
+                    }
                 }
             }
         });
@@ -320,6 +332,7 @@ public class VideoPanel extends JPanel {
     private void takePhoto() {
         repaint();
         photoButton.setEnabled(false); // Disable the button while taking a photo
+        ledController.sendCommand("mode " + ledController.getCurrentMode() + ";");
         executorService.submit(() -> {
             photoTaker.takePhoto().thenAccept(result -> SwingUtilities.invokeLater(() -> {
                 photoButton.setEnabled(true); // Re-enable the button
@@ -436,6 +449,7 @@ public class VideoPanel extends JPanel {
     public void removeNotify() {
         super.removeNotify();
         cameraStateMonitor.stop();
+        ledController.close();
     }
 
     public static void main(String[] args) {

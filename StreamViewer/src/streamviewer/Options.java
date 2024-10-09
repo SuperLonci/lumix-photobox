@@ -9,13 +9,15 @@ public class Options {
     private final String viewerType;
     private final int webcamIndex;
     private final boolean mockCamera;
+    private final String comPort;
 
-    private Options(String cameraIp, int cameraNetMaskBitSize, String viewerType, int webcamIndex, boolean mockCamera) {
+    private Options(String cameraIp, int cameraNetMaskBitSize, String viewerType, int webcamIndex, boolean mockCamera, String comPort) {
         this.cameraIp = cameraIp;
         this.cameraNetMaskBitSize = cameraNetMaskBitSize;
         this.viewerType = viewerType;
         this.webcamIndex = webcamIndex;
         this.mockCamera = mockCamera;
+        this.comPort = comPort;
     }
 
     public static Options read() {
@@ -25,6 +27,7 @@ public class Options {
         JComboBox<String> viewerTypeCombo = new JComboBox<>(viewerTypes);
         JTextField webcamIndexField = new JTextField("0", 5);
         JCheckBox mockCameraCheckbox = new JCheckBox("Mock Camera Communication");
+        JTextField comPortField = new JTextField(10);
 
         JPanel panel = new JPanel(new GridLayout(0, 2));
         panel.add(new JLabel("Camera IP address:"));
@@ -37,6 +40,8 @@ public class Options {
         panel.add(webcamIndexField);
         panel.add(new JLabel("Mock Camera:"));
         panel.add(mockCameraCheckbox);
+        panel.add(new JLabel("COM Port (optional):"));
+        panel.add(comPortField);
 
         int result = JOptionPane.showConfirmDialog(null, panel,
                 "Enter Camera Settings", JOptionPane.OK_CANCEL_OPTION);
@@ -56,7 +61,12 @@ public class Options {
                 webcamIndex = 0;
             }
             boolean mockCamera = mockCameraCheckbox.isSelected();
-            return new Options(cameraIp, cameraNetMaskBitSize, viewerType, webcamIndex, mockCamera);
+            String comPort = comPortField.getText().trim();
+            // If COM port is empty, set it to null
+            if (comPort.isEmpty()) {
+                comPort = null;
+            }
+            return new Options(cameraIp, cameraNetMaskBitSize, viewerType, webcamIndex, mockCamera, comPort);
         } else {
             System.exit(0);
             return null;
@@ -81,5 +91,9 @@ public class Options {
 
     public boolean isMockCamera() {
         return mockCamera;
+    }
+
+    public String getComPort() {
+        return comPort;
     }
 }
