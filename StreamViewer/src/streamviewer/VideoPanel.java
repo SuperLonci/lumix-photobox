@@ -29,6 +29,12 @@ public class VideoPanel extends JPanel {
     private final PhotoTaker photoTaker;
     private final ExecutorService executorService;
 
+    private final JPanel infoPanel;
+    private final JLabel batteryLabel;
+    private final JLabel sdCardLabel;
+    private final JLabel errorLabel;
+    private final CameraStateMonitor cameraStateMonitor;
+    private boolean showInfoPanel = false;
 
     public VideoPanel(Options options) {
         setLayout(null); // Use null layout for absolute positioning
@@ -54,6 +60,26 @@ public class VideoPanel extends JPanel {
 
         photoTaker = new PhotoTaker(options);
 
+        // Initialize info panel
+        infoPanel = new JPanel();
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setBackground(new Color(0, 0, 0, 150));
+        batteryLabel = new JLabel();
+        sdCardLabel = new JLabel();
+        errorLabel = new JLabel();
+        batteryLabel.setForeground(Color.WHITE);
+        sdCardLabel.setForeground(Color.WHITE);
+        errorLabel.setForeground(Color.RED);
+        infoPanel.add(batteryLabel);
+        infoPanel.add(sdCardLabel);
+        infoPanel.add(errorLabel);
+        infoPanel.setVisible(false);
+        add(infoPanel);
+
+        // Initialize camera state monitor
+        cameraStateMonitor = new CameraStateMonitor(options, this::updateInfoPanel);
+        cameraStateMonitor.start();
+
         // Set up key listener for Enter, Esc, F, and B keys
         setFocusable(true);
         addKeyListener(new KeyAdapter() {
@@ -69,6 +95,9 @@ public class VideoPanel extends JPanel {
                     cycleBackgroundMode();
                 } else if (e.getKeyCode() == KeyEvent.VK_C) {
                     changeBackgroundColor();
+                } else if (e.getKeyCode() == KeyEvent.VK_I) {
+                    showInfoPanel = !showInfoPanel;
+                    updateInfoPanelVisibility();
                 }
             }
         });
@@ -202,6 +231,11 @@ public class VideoPanel extends JPanel {
         int buttonSize = 200;
         photoButton.setBounds(width - buttonSize - 10, height - buttonSize - 10, buttonSize, buttonSize);
 
+        // Position the info panel at the bottom left
+        int infoPanelWidth = 250;
+        int infoPanelHeight = 50;
+        infoPanel.setBounds(10, height - infoPanelHeight - 10, infoPanelWidth, infoPanelHeight);
+
         // Ensure the panel is repainted after updating positions
         revalidate();
         repaint();
@@ -311,6 +345,44 @@ public class VideoPanel extends JPanel {
         });
     }
 
+    private void updateInfoPanel() {
+        batteryLabel.setText("Battery: " + cameraStateMonitor.getBatteryStatus());
+        sdCardLabel.setText("SD Card: " + cameraStateMonitor.getSdCardStatus());
+
+        boolean shouldShowPanel = cameraStateMonitor.isLowBattery() || cameraStateMonitor.isNoSdCard();
+
+        if (cameraStateMonitor.isLowBattery()) {
+            batteryLabel.setForeground(Color.RED);
+        } else {
+            batteryLabel.setForeground(Color.WHITE);
+        }
+
+        if (cameraStateMonitor.isNoSdCard()) {
+            sdCardLabel.setForeground(Color.RED);
+            sdCardLabel.setText("SD Card: Not Found");
+        } else {
+            sdCardLabel.setForeground(Color.WHITE);
+        }
+
+        String errorMessage = cameraStateMonitor.getErrorMessage();
+        if (errorMessage != null) {
+            errorLabel.setText("Error: " + errorMessage);
+            errorLabel.setVisible(true);
+            shouldShowPanel = true;
+        } else {
+            errorLabel.setVisible(false);
+        }
+
+        showInfoPanel = showInfoPanel || shouldShowPanel;
+        updateInfoPanelVisibility();
+    }
+
+    private void updateInfoPanelVisibility() {
+        infoPanel.setVisible(showInfoPanel);
+        repaint();
+    }
+
+
     // Fullscreen
     private void toggleFullscreen() {
         Window window = SwingUtilities.getWindowAncestor(this);
@@ -358,6 +430,12 @@ public class VideoPanel extends JPanel {
         } else {
             frame.pack();
         }
+    }
+
+    @Override
+    public void removeNotify() {
+        super.removeNotify();
+        cameraStateMonitor.stop();
     }
 
     public static void main(String[] args) {

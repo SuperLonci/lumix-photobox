@@ -8,20 +8,23 @@ public class Options {
     private final int cameraNetMaskBitSize;
     private final String viewerType;
     private final int webcamIndex;
+    private final boolean mockCamera;
 
-    private Options(String cameraIp, int cameraNetMaskBitSize, String viewerType, int webcamIndex) {
+    private Options(String cameraIp, int cameraNetMaskBitSize, String viewerType, int webcamIndex, boolean mockCamera) {
         this.cameraIp = cameraIp;
         this.cameraNetMaskBitSize = cameraNetMaskBitSize;
         this.viewerType = viewerType;
         this.webcamIndex = webcamIndex;
+        this.mockCamera = mockCamera;
     }
 
     public static Options read() {
         JTextField ipField = new JTextField("192.168.54.1", 15);
         JTextField maskField = new JTextField("24", 5);
-        String[] viewerTypes = {"webcam", "real", "mock" };
+        String[] viewerTypes = {"webcam", "real", "mock"};
         JComboBox<String> viewerTypeCombo = new JComboBox<>(viewerTypes);
         JTextField webcamIndexField = new JTextField("0", 5);
+        JCheckBox mockCameraCheckbox = new JCheckBox("Mock Camera Communication");
 
         JPanel panel = new JPanel(new GridLayout(0, 2));
         panel.add(new JLabel("Camera IP address:"));
@@ -32,6 +35,8 @@ public class Options {
         panel.add(viewerTypeCombo);
         panel.add(new JLabel("Webcam Index:"));
         panel.add(webcamIndexField);
+        panel.add(new JLabel("Mock Camera:"));
+        panel.add(mockCameraCheckbox);
 
         int result = JOptionPane.showConfirmDialog(null, panel,
                 "Enter Camera Settings", JOptionPane.OK_CANCEL_OPTION);
@@ -50,7 +55,8 @@ public class Options {
             } catch (NumberFormatException e) {
                 webcamIndex = 0;
             }
-            return new Options(cameraIp, cameraNetMaskBitSize, viewerType, webcamIndex);
+            boolean mockCamera = mockCameraCheckbox.isSelected();
+            return new Options(cameraIp, cameraNetMaskBitSize, viewerType, webcamIndex, mockCamera);
         } else {
             System.exit(0);
             return null;
@@ -71,5 +77,9 @@ public class Options {
 
     public int getWebcamIndex() {
         return webcamIndex;
+    }
+
+    public boolean isMockCamera() {
+        return mockCamera;
     }
 }
