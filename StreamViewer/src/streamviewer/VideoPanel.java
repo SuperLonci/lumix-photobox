@@ -4,7 +4,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
@@ -108,11 +107,11 @@ public class VideoPanel extends JPanel {
         backgroundEffects[currentBackgroundMode].render(g2d);
 
         if (bufferedImage != null) {
-            drawFittedImage(g2d, bufferedImage);
+            drawFittedImage(g2d, bufferedImage, true); // Draw video stream with 16:9 aspect ratio
         }
 
         if (showingSmiley && smileyImage != null) {
-            drawFittedImage(g2d, smileyImage);
+            drawFittedImage(g2d, smileyImage, false); // Draw smiley without forcing 16:9 aspect ratio
         }
 
         if (countdownSeconds > 0 && countdownSeconds <= 3) {
@@ -121,16 +120,29 @@ public class VideoPanel extends JPanel {
     }
 
 
-    private void drawFittedImage(Graphics2D g2d, BufferedImage image) {
+    private void drawFittedImage(Graphics2D g2d, BufferedImage image, boolean force16by9) {
         int panelWidth = getWidth();
         int panelHeight = getHeight();
         int imageWidth = image.getWidth();
         int imageHeight = image.getHeight();
-        double scale = Math.min((double) panelWidth / imageWidth, (double) panelHeight / imageHeight);
-        int scaledWidth = (int) (imageWidth * scale);
-        int scaledHeight = (int) (imageHeight * scale);
+
+        double targetAspectRatio = force16by9 ? 16.0 / 9.0 : (double) imageWidth / imageHeight;
+        double panelAspectRatio = (double) panelWidth / panelHeight;
+
+        int scaledWidth, scaledHeight;
+        if (panelAspectRatio > targetAspectRatio) {
+            // Panel is wider, height is the limiting factor
+            scaledHeight = panelHeight;
+            scaledWidth = (int) (scaledHeight * targetAspectRatio);
+        } else {
+            // Panel is taller, width is the limiting factor
+            scaledWidth = panelWidth;
+            scaledHeight = (int) (scaledWidth / targetAspectRatio);
+        }
+
         int x = (panelWidth - scaledWidth) / 2;
         int y = (panelHeight - scaledHeight) / 2;
+
         g2d.drawImage(image, x, y, scaledWidth, scaledHeight, null);
     }
 
@@ -254,19 +266,18 @@ public class VideoPanel extends JPanel {
     }
 
     private void showSmileyImage() {
-//        System.out.println("showSmileyImage called");
         showingSmiley = true;
         repaint();
+        takePhoto();
 
         if (smileyTimer != null && smileyTimer.isRunning()) {
             smileyTimer.stop();
         }
         smileyTimer = new Timer(1000, e -> {
-//            System.out.println("Smiley timer finished");
             showingSmiley = false;
             ((Timer) e.getSource()).stop();
-            takePhoto();
             SwingUtilities.invokeLater(this::requestFocusInWindow);
+            repaint();
         });
         smileyTimer.setRepeats(false);
         smileyTimer.start();
