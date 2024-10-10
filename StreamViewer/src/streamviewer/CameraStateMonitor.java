@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import javax.swing.SwingUtilities;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.ByteArrayInputStream;
@@ -17,19 +18,18 @@ import java.nio.charset.StandardCharsets;
 
 public class CameraStateMonitor {
     private final String cameraIp;
-    private final boolean mockCamera;
     private final ScheduledExecutorService scheduler;
     private final CameraStateUpdateListener updateListener;
 
     private String batteryStatus = "Unknown";
     private String sdCardStatus = "Unknown";
+    private String remainingImages = "Unknown";
     private String errorMessage = null;
 
     private boolean isRunning = false;
 
     public CameraStateMonitor(Options options, CameraStateUpdateListener updateListener) {
         this.cameraIp = options.getCameraIp();
-        this.mockCamera = options.isMockCamera();
         this.updateListener = updateListener;
         this.scheduler = Executors.newScheduledThreadPool(1);
     }
@@ -50,14 +50,14 @@ public class CameraStateMonitor {
 
     private void checkCameraState() {
         try {
-            String response = mockCamera ? getMockResponse() : sendRequest();
+            String response = sendRequest();
             parseResponse(response);
             errorMessage = null;
         } catch (Exception e) {
             errorMessage = "Error connecting to camera: " + e.getMessage();
         }
         SwingUtilities.invokeLater(() -> {
-            updateListener.onCameraStateUpdate(batteryStatus, sdCardStatus, errorMessage, isLowBattery(), isNoSdCard());
+            updateListener.onCameraStateUpdate(batteryStatus, sdCardStatus, remainingImages, errorMessage, isLowBattery(), isNoSdCard());
         });
     }
 
@@ -78,35 +78,29 @@ public class CameraStateMonitor {
         }
     }
 
-    private String getMockResponse() {
-        return "<camrply><result>ok</result><state><batt>0/3</batt><sdcardstatus>write_enable</sdcardstatus></state></camrply>";
-    }
-
     private void parseResponse(String response) throws Exception {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder = factory.newDocumentBuilder();
         Document doc = builder.parse(new ByteArrayInputStream(response.getBytes(StandardCharsets.UTF_8)));
 
         Element stateElement = (Element) doc.getElementsByTagName("state").item(0);
-        batteryStatus = stateElement.getElementsByTagName("batt").item(0).getTextContent();
-        sdCardStatus = stateElement.getElementsByTagName("sdcardstatus").item(0).getTextContent();
+
+        NodeList battElements = stateElement.getElementsByTagName("batt");
+        if (battElements.getLength() > 0) {
+            batteryStatus = battElements.item(0).getTextContent();
+        }
+
+        NodeList sdCardElements = stateElement.getElementsByTagName("sdcardstatus");
+        if (sdCardElements.getLength() > 0) {
+            sdCardStatus = sdCardElements.item(0).getTextContent();
+        }
+
+        NodeList remainCapacityElements = stateElement.getElementsByTagName("remaincapacity");
+        if (remainCapacityElements.getLength() > 0) {
+            remainingImages = remainCapacityElements.item(0).getTextContent();
+        }
 
         errorMessage = null;
-    }
-
-    public String getBatteryStatus() {
-        return batteryStatus;
-    }
-
-    public String getSdCardStatus() {
-        return sdCardStatus;
-    }
-
-    public String getErrorMessage() {
-        if (mockCamera) {
-            errorMessage = "Camera is mocked";
-        }
-        return errorMessage;
     }
 
     public boolean isLowBattery() {

@@ -6,7 +6,6 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.CompletableFuture;
-import javax.swing.SwingUtilities;
 
 public class PhotoTaker {
     private final String cameraIp;

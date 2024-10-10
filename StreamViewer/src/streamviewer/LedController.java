@@ -19,7 +19,6 @@ public class LedController {
         }
     }
 
-
     private void connectToSerial(String comPort) {
         serialPort = SerialPort.getCommPort(comPort);
         serialPort.setBaudRate(9600);

@@ -33,17 +33,18 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
     private final JLabel batteryLabel;
     private final JLabel sdCardLabel;
     private final JLabel errorLabel;
-    private CameraStateMonitor cameraStateMonitor;
+    private final JLabel remainingImagesLabel;
+
+    private final String cameraStateMonitorMode;
     private boolean showInfoPanel = false;
 
     private final LedController ledController;
 
     private final Runnable cameraModeSwitch;
-    private final boolean useCameraStateMonitor;
 
     public VideoPanel(Options options, Runnable cameraModeSwitch) {
         this.cameraModeSwitch = cameraModeSwitch;
-        this.useCameraStateMonitor = options.isUseCameraStateMonitor();
+        this.cameraStateMonitorMode = options.getCameraStateMonitorMode();
 
         setLayout(null); // Use null layout for absolute positioning
         this.executorService = Executors.newSingleThreadExecutor();
@@ -75,20 +76,17 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
         batteryLabel = new JLabel();
         sdCardLabel = new JLabel();
         errorLabel = new JLabel();
+        remainingImagesLabel = new JLabel();  // Initialize the new label
         batteryLabel.setForeground(Color.WHITE);
         sdCardLabel.setForeground(Color.WHITE);
         errorLabel.setForeground(Color.RED);
+        remainingImagesLabel.setForeground(Color.WHITE);  // Set color for the new label
         infoPanel.add(batteryLabel);
         infoPanel.add(sdCardLabel);
+        infoPanel.add(remainingImagesLabel);  // Add the new label to the info panel
         infoPanel.add(errorLabel);
         infoPanel.setVisible(false);
         add(infoPanel);
-
-        // Initialize camera state monitor
-        if (options.isUseCameraStateMonitor()) {
-            CameraStateMonitor cameraStateMonitor = new CameraStateMonitor(options, this::updateInfoPanel);
-            cameraStateMonitor.start();
-        }
 
         // Initialize LedController
         ledController = new LedController(options);
@@ -108,7 +106,7 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
                     cycleBackgroundMode();
                 } else if (e.getKeyCode() == KeyEvent.VK_C) {
                     changeBackgroundColor();
-                } else if (e.getKeyCode() == KeyEvent.VK_I && useCameraStateMonitor) {
+                } else if (e.getKeyCode() == KeyEvent.VK_I && !cameraStateMonitorMode.equals("none")) {
                     toggleInfoPanel();
                 } else if (e.getKeyCode() == KeyEvent.VK_L) {
                     ledController.cycleMode();
@@ -254,7 +252,7 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
 
         // Position the info panel at the bottom left
         int infoPanelWidth = 250;
-        int infoPanelHeight = 50;
+        int infoPanelHeight = 80;
         infoPanel.setBounds(10, height - infoPanelHeight - 10, infoPanelWidth, infoPanelHeight);
 
         // Ensure the panel is repainted after updating positions
@@ -367,37 +365,15 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
     }
 
     @Override
-    public void onCameraStateUpdate(String batteryStatus, String sdCardStatus, String errorMessage, boolean lowBattery, boolean noSdCard) {
-        if (!useCameraStateMonitor) return;
+    public void onCameraStateUpdate(String batteryStatus, String sdCardStatus, String remainingImages, String errorMessage, boolean lowBattery, boolean noSdCard) {
+        if (cameraStateMonitorMode.equals("none")) return;
 
         batteryLabel.setText("Battery: " + batteryStatus);
         sdCardLabel.setText("SD Card: " + sdCardStatus);
+        remainingImagesLabel.setText("Remaining Images: " + remainingImages);
 
-        batteryLabel.setForeground(lowBattery ? Color.RED : Color.WHITE);
-
-        if (noSdCard) {
-            sdCardLabel.setForeground(Color.RED);
-            sdCardLabel.setText("SD Card: Not Found");
-        } else {
-            sdCardLabel.setForeground(Color.WHITE);
-        }
-
-        errorLabel.setText(errorMessage != null ? "Error: " + errorMessage : "");
-        errorLabel.setVisible(errorMessage != null && !errorMessage.isEmpty());
-
-        boolean shouldShowPanel = lowBattery || noSdCard || (errorMessage != null && !errorMessage.isEmpty());
-        showInfoPanel = showInfoPanel || shouldShowPanel;
-        updateInfoPanelVisibility();
-    }
-
-
-    public void updateInfoPanel(String batteryStatus, String sdCardStatus, String errorMessage, boolean lowBattery, boolean noSdCard) {
-        if (!useCameraStateMonitor) return;
-
-        batteryLabel.setText("Battery: " + batteryStatus);
-        sdCardLabel.setText("SD Card: " + sdCardStatus);
-
-        if (lowBattery) {
+        // Check battery status
+        if ("0/3".equals(batteryStatus) || lowBattery) {
             batteryLabel.setForeground(Color.RED);
         } else {
             batteryLabel.setForeground(Color.WHITE);
@@ -410,14 +386,25 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
             sdCardLabel.setForeground(Color.WHITE);
         }
 
-        if (errorMessage != null && !errorMessage.isEmpty()) {
-            errorLabel.setText("Error: " + errorMessage);
-            errorLabel.setVisible(true);
-        } else {
-            errorLabel.setVisible(false);
+        // Check if remaining images are below 50
+        boolean lowRemainingImages = false;
+        try {
+            int remainingImagesCount = Integer.parseInt(remainingImages);
+            if (remainingImagesCount < 50) {
+                lowRemainingImages = true;
+                remainingImagesLabel.setForeground(Color.RED);
+            } else {
+                remainingImagesLabel.setForeground(Color.WHITE);
+            }
+        } catch (NumberFormatException e) {
+            // If parsing fails, keep the text white
+            remainingImagesLabel.setForeground(Color.WHITE);
         }
 
-        boolean shouldShowPanel = lowBattery || noSdCard || (errorMessage != null && !errorMessage.isEmpty());
+        errorLabel.setText(errorMessage != null ? "Error: " + errorMessage : "");
+        errorLabel.setVisible(errorMessage != null && !errorMessage.isEmpty());
+
+        boolean shouldShowPanel = "0/3".equals(batteryStatus) || lowBattery || noSdCard || lowRemainingImages || (errorMessage != null && !errorMessage.isEmpty());
         showInfoPanel = showInfoPanel || shouldShowPanel;
         updateInfoPanelVisibility();
     }
@@ -485,7 +472,11 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
     @Override
     public void removeNotify() {
         super.removeNotify();
-        cameraStateMonitor.stop();
         ledController.close();
+
+        // It's a good practice to shutdown the executorService when the panel is being removed
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+        }
     }
 }

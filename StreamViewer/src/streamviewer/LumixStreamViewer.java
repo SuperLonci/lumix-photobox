@@ -1,147 +1,182 @@
 package streamviewer;
 
-import javax.swing.*;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
-public class LumixStreamViewer {
-    private static JFrame window;
-    private static VideoPanel videoPanel;
-    private static StreamViewerInterface currentStreamViewer;
-    private static Options options;
-    private static Thread streamViewerThread;
-    private static CameraStateMonitor cameraStateMonitor;
+import javax.imageio.ImageIO;
 
-    public static void main(String[] args) {
-        System.load(System.getProperty("user.dir") + "/lib/opencv_java4100.dll");  // For Windows
+/**
+ * Reads the camera video stream.
+ *
+ * The camera sends a continuous stream of UDP packets to whoever called its "startstream" method
+ */
+public class LumixStreamViewer implements StreamViewerInterface {
 
-        SwingUtilities.invokeLater(() -> {
-            options = Options.read();
-            if (options == null) {
-                return;  // User cancelled the input dialog
-            }
+// debugigng
+    private long packetCount = 0;
+    private long lastLogTime = System.currentTimeMillis();
 
-            initializeUI();
-            initializeStreamViewer();
-            initializeCameraStateMonitor();
-        });
+    private Consumer<BufferedImage> imageConsumer;
+
+    /**
+     * The local UDP socket for receiving the video stream.
+     */
+    private final DatagramSocket localUdpSocket;
+
+    /**
+     * The UDP port to listen on.
+     */
+    private final int localUdpPort;
+
+    /**
+     * IP address of the local network interface communicating with the camera.
+     */
+    private final InetAddress cameraIp;
+
+    private ExecutorService imageExecutor = Executors.newCachedThreadPool();
+
+    @Override
+    public void setImageConsumer(Consumer<BufferedImage> imageConsumer) {
+        this.imageConsumer = imageConsumer;
     }
 
-    private static void initializeUI() {
-        window = new JFrame("Lumix Photobox");
-        videoPanel = new VideoPanel(options, LumixStreamViewer::switchCameraMode);
-        window.add(videoPanel);
-        window.setSize(1600, 900);
-        window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        window.setVisible(true);
-
-        window.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent ev) {
-                stopStreamViewer();
-                stopCameraStateMonitor();
-                System.exit(0);
-            }
-        });
+    /**
+     * Create the Lumix videostream reader connected to the default UDP port 49199.
+     *
+     * @param imageConsumer the consumer to receive the BufferedImages received from the camera
+     * @param cameraIp IPv4 address of the camera.
+     * @param cameraNetmaskBitSize Size of the camera network's subnet.
+     * @throws UnknownHostException If the camera IP address cannot be parsed.
+     * @throws SocketException On network communication errors.
+     */
+    public LumixStreamViewer(Consumer<BufferedImage> imageConsumer, String cameraIp, int cameraNetmaskBitSize)
+            throws UnknownHostException, SocketException {
+        this(imageConsumer, cameraIp, cameraNetmaskBitSize, 49199);
     }
 
-    private static void initializeCameraStateMonitor() {
-        if (options.isUseCameraStateMonitor()) {
-            cameraStateMonitor = new CameraStateMonitor(options, videoPanel);
-            cameraStateMonitor.start();
-        }
+    /**
+     * Create the Lumix videostream reader.
+     *
+     * @param imageConsumer the consumer to receive the BufferedImages received from the camera
+     * @param cameraIp IPv4 address of the camera.
+     * @param cameraNetmaskBitSize Size of the camera network's subnet.
+     * @param udpPort The UDP port to listen on.
+     * @throws UnknownHostException If the camera IP address cannot be parsed.
+     * @throws SocketException On network communication errors.
+     */
+    public LumixStreamViewer(Consumer<BufferedImage> imageConsumer, String cameraIp, int cameraNetmaskBitSize, int udpPort)
+            throws UnknownHostException, SocketException {
+        this.imageConsumer = imageConsumer;
+        this.cameraIp = NetUtil.findLocalIpInSubnet(cameraIp, cameraNetmaskBitSize);
+
+        this.localUdpPort = udpPort;
+        this.localUdpSocket = new DatagramSocket(this.localUdpPort);
+
+        System.out.println("UDP Socket on " + this.cameraIp.getHostAddress() + ":" + this.localUdpPort
+                + " created");
     }
 
-    private static void stopCameraStateMonitor() {
-        if (cameraStateMonitor != null) {
-            cameraStateMonitor.stop();
-        }
-    }
+    private BufferedImage retrieveImage(DatagramPacket receivedPacket) {
+        final byte[] videoData = getImageData(receivedPacket);
 
-    private static boolean initializeStreamViewer() {
-        stopStreamViewer(); // Stop any existing viewer
+        System.out.println("Extracted video data. Size: " + videoData.length + " bytes");
 
+        BufferedImage img = null;
         try {
-            currentStreamViewer = createStreamViewer(options.getViewerType());
-            currentStreamViewer.setImageConsumer(videoPanel::displayNewImage);
-            streamViewerThread = new Thread(currentStreamViewer);
-            streamViewerThread.start();
-            return true;
-        } catch (Exception e) {
-            handleStreamViewerError(e);
-            return false;
-        }
-    }
-
-    private static StreamViewerInterface createStreamViewer(String viewerType) throws Exception {
-        switch (viewerType) {
-            case "mock":
-                return new MockStreamViewer("/mockImage.png");
-            case "real":
-                return new StreamViewer(videoPanel::displayNewImage, options.getCameraIp(), options.getCameraNetMaskBitSize());
-            case "webcam":
-                return new WebcamStreamViewer(options.getWebcamIndex());
-            default:
-                throw new IllegalArgumentException("Invalid viewer type selected.");
-        }
-    }
-
-    private static void stopStreamViewer() {
-        if (currentStreamViewer != null) {
-            if (currentStreamViewer instanceof WebcamStreamViewer) {
-                ((WebcamStreamViewer) currentStreamViewer).stop();
+            img = ImageIO.read(new ByteArrayInputStream(videoData));
+            if (img == null) {
+                System.out.println("ImageIO.read returned null. Data length: " + videoData.length);
+                // Print first few bytes of the data for debugging
+                System.out.println("First 10 bytes: " + Arrays.toString(Arrays.copyOf(videoData, Math.min(10, videoData.length))));
             }
-            if (streamViewerThread != null) {
-                streamViewerThread.interrupt();
-                try {
-                    streamViewerThread.join(1000); // Wait for the thread to finish, but not more than 1 second
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+        } catch (IOException e) {
+            System.err.println("Error while reading image data: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return img;
+    }
+
+    /**
+     * The camera sends one JPEG image in each UDP packet.
+     *
+     * @param receivedPacket a received camera image packet
+     * @return the jpeg image data
+     */
+    private byte[] getImageData(DatagramPacket receivedPacket) {
+        final byte[] udpData = receivedPacket.getData();
+        int videoDataStart = getImageDataStart(receivedPacket, udpData);
+        System.out.println("Image data starts at byte: " + videoDataStart);
+        return Arrays.copyOfRange(udpData, videoDataStart, receivedPacket.getLength());
+    }
+
+    private int getImageDataStart(DatagramPacket receivedPacket, byte[] udpData) {
+        int videoDataStart = 130;
+
+        // The image data starts somewhere after the first 130 bytes, but at last in 320 bytes
+        for (int k = 130; k < 320 && k < (receivedPacket.getLength() - 1); k++) {
+            // The bytes FF and D8 signify the start of the jpeg data, see https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format
+            if ((udpData[k] == (byte) 0xFF) && (udpData[(k + 1)] == (byte) 0xD8)) {
+                videoDataStart = k;
+            }
+        }
+
+        return videoDataStart;
+    }
+
+    @Override
+    public void run() {
+        byte[] udpPacketBuffer = new byte[35000];
+
+        System.out.println("StreamViewer started. Listening for packets...");
+
+        while (!Thread.interrupted()) {
+            try {
+                final DatagramPacket receivedPacket = new DatagramPacket(udpPacketBuffer, udpPacketBuffer.length,
+                        cameraIp, localUdpPort);
+
+                System.out.println("Waiting to receive packet...");
+                localUdpSocket.receive(receivedPacket);
+
+                System.out.println("Received packet from: " + receivedPacket.getAddress() + ":" + receivedPacket.getPort());
+                System.out.println("Packet length: " + receivedPacket.getLength());
+
+                packetCount++;
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastLogTime > 5000) {
+                    System.out.println("Received " + packetCount + " packets in the last 5 seconds");
+                    packetCount = 0;
+                    lastLogTime = currentTime;
                 }
+
+                imageExecutor.submit(() -> {
+                    BufferedImage newImage = retrieveImage(receivedPacket);
+                    if (newImage != null) {
+                        System.out.println("Successfully retrieved image. Size: " + newImage.getWidth() + "x" + newImage.getHeight());
+                        imageConsumer.accept(newImage);
+                    } else {
+                        System.out.println("Failed to retrieve image from packet. Packet size: " + receivedPacket.getLength());
+                    }
+                });
+
+            } catch (IOException e) {
+                System.out.println("Error with client request : " + e.getMessage());
             }
-            currentStreamViewer = null;
-            streamViewerThread = null;
         }
-        // Clear the video panel
-        SwingUtilities.invokeLater(() -> videoPanel.displayNewImage(null));
+
+        System.out.println("StreamViewer stopped.");
+        imageExecutor.shutdown();
+        localUdpSocket.close();
     }
 
-    public static void switchCameraMode() {
-        CameraModeSelector selector = new CameraModeSelector(window, options);
-        String newMode = selector.selectMode();
-        if (newMode != null && !newMode.equals(options.getViewerType())) {
-            String previousMode = options.getViewerType();
-            options.setViewerType(newMode);
-            if (!initializeStreamViewer()) {
-                // If initialization fails, revert to the previous mode
-                options.setViewerType(previousMode);
-                initializeStreamViewer();
-            }
-            // Update CameraStateMonitor if needed
-            stopCameraStateMonitor();
-            initializeCameraStateMonitor();
-        }
-    }
-
-    private static void handleStreamViewerError(Exception e) {
-        String errorMessage = "Error initializing stream viewer: " + e.getMessage();
-        if (e instanceof IOException && options.getViewerType().equals("mock")) {
-            errorMessage += "\nMake sure the mock image file exists in the resources folder.";
-        }
-        JOptionPane.showMessageDialog(window, errorMessage, "Error", JOptionPane.ERROR_MESSAGE);
-
-        // Revert to the previous viewer type if available
-        if (currentStreamViewer != null) {
-            options.setViewerType(getPreviousViewerType());
-            initializeStreamViewer();
-        }
-    }
-
-    private static String getPreviousViewerType() {
-        // This method should return a valid viewer type that was working before
-        // For simplicity, we'll return "webcam" as a fallback, but you might want to implement
-        // a more sophisticated method to remember the last working viewer type
-        return "webcam";
-    }
 }
