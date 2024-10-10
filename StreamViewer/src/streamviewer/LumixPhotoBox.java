@@ -14,6 +14,7 @@ public class LumixPhotoBox {
     private static CameraStateMonitor cameraStateMonitor;
 
     public static void main(String[] args) {
+
         System.load(System.getProperty("user.dir") + "/lib/opencv_java4100.dll");  // For Windows
 
         SwingUtilities.invokeLater(() -> {

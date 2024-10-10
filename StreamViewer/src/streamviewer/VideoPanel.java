@@ -11,10 +11,13 @@ import java.util.concurrent.Executors;
 import javax.imageio.ImageIO;
 
 public class VideoPanel extends JPanel implements CameraStateUpdateListener {
+    private ExecutorService executorService;
 
     private int currentBackgroundMode = 0;
     private final BackgroundEffect[] backgroundEffects;
     private Color backgroundColor = Color.WHITE;
+
+    private boolean isFullScreenTransition = false;
 
     private BufferedImage currentImage;
     private final JButton photoButton;
@@ -27,7 +30,6 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
     private Timer smileyTimer;
 
     private final PhotoTaker photoTaker;
-    private final ExecutorService executorService;
 
     private final JPanel infoPanel;
     private final JLabel batteryLabel;
@@ -43,6 +45,8 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
     private final Runnable cameraModeSwitch;
 
     public VideoPanel(Options options, Runnable cameraModeSwitch) {
+        this.executorService = Executors.newSingleThreadExecutor();
+
         this.cameraModeSwitch = cameraModeSwitch;
         this.cameraStateMonitorMode = options.getCameraStateMonitorMode();
 
@@ -50,7 +54,7 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
         this.executorService = Executors.newSingleThreadExecutor();
 
         // Initialize background effects
-        backgroundEffects = new BackgroundEffect[] {
+        backgroundEffects = new BackgroundEffect[]{
                 new BackgroundEffect.NoEffect(),
                 new BackgroundEffect.ColorFadeEffect(),
                 new BackgroundEffect.ExtendedBackgroundEffect()
@@ -203,7 +207,7 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
         String text = String.valueOf(countdownSeconds);
 
         // Calculate the font size to be 90% of the screen height
-        int fontSize = (int)(getHeight() * 0.9);
+        int fontSize = (int) (getHeight() * 0.9);
         Font font = new Font("Arial", Font.BOLD, fontSize);
         g2d.setFont(font);
 
@@ -274,7 +278,7 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
 
     public void setBackgroundColor(Color color) {
         this.backgroundColor = color;
-        ((BackgroundEffect.NoEffect)backgroundEffects[0]).setBackgroundColor(color);
+        ((BackgroundEffect.NoEffect) backgroundEffects[0]).setBackgroundColor(color);
         repaint();
     }
 
@@ -425,11 +429,16 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
         Window window = SwingUtilities.getWindowAncestor(this);
         if (window instanceof JFrame frame) {
             GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
-            if (frame.isUndecorated()) {
-                exitFullscreen(frame, gd);
-            } else {
-                lastWindowSize = frame.getSize();
-                enterFullscreen(frame, gd);
+            isFullScreenTransition = true;
+            try {
+                if (frame.isUndecorated()) {
+                    exitFullscreen(frame, gd);
+                } else {
+                    lastWindowSize = frame.getSize();
+                    enterFullscreen(frame, gd);
+                }
+            } finally {
+                isFullScreenTransition = false;
             }
             SwingUtilities.invokeLater(this::requestFocusInWindow);
             updateComponentPositions();
@@ -444,7 +453,12 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
             GraphicsDevice gd = ge.getDefaultScreenDevice();
 
             if (frame.isUndecorated()) {
-                exitFullscreen(frame, gd);
+                isFullScreenTransition = true;
+                try {
+                    exitFullscreen(frame, gd);
+                } finally {
+                    isFullScreenTransition = false;
+                }
                 requestFocusInWindow();
                 updateComponentPositions();
             }
@@ -474,9 +488,10 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
         super.removeNotify();
         ledController.close();
 
-        // It's a good practice to shutdown the executorService when the panel is being removed
-        if (executorService != null && !executorService.isShutdown()) {
-            executorService.shutdownNow();
+        if (!isFullScreenTransition) {
+            if (executorService != null && !executorService.isShutdown()) {
+                executorService.shutdownNow();
+            }
         }
     }
 }
