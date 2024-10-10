@@ -297,9 +297,13 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
         showingSmiley = false;
         countdownAlpha = 1.0f;
 
+        // Start with mode 2 for the countdown
+        ledController.sendCommand("mode 2" + ";");
+
         countdownTimer = new Timer(16, new ActionListener() {
             private final long startTime = System.currentTimeMillis();
             private int lastSecond = 3;
+            private boolean ledCommandSent = false;
 
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -315,6 +319,12 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
                     countdownAlpha = Math.max(0, 1 - fractionOfSecond);
                 }
 
+                // Switch to mode 1 approximately 0.5 seconds before photo is taken
+                if (!ledCommandSent && elapsedSeconds >= 2.5) {
+                    ledController.sendCommand("mode 1" + ";");
+                    ledCommandSent = true;
+                }
+
                 if (countdownSeconds > 0) {
                     repaint();
                 } else {
@@ -324,7 +334,6 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
             }
         });
         countdownTimer.start();
-        ledController.sendCommand("mode 2" + ";");
     }
 
     private void showSmileyImage() {
@@ -347,7 +356,6 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
 
     private void takePhoto() {
         repaint();
-        ledController.sendCommand("mode 1" + ";");
         photoButton.setEnabled(false); // Disable the button while taking a photo
         executorService.submit(() -> {
             photoTaker.takePhoto().thenAccept(result -> SwingUtilities.invokeLater(() -> {
@@ -357,6 +365,7 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
                 } else {
                     showErrorDialog(result.getErrorMessage());
                 }
+                // Return to the previous LED mode after taking the photo
                 ledController.sendCommand("mode " + ledController.getCurrentMode() + ";");
             }));
         });
