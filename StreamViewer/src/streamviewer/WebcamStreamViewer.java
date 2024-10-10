@@ -12,15 +12,6 @@ import java.util.function.Consumer;
 
 public class WebcamStreamViewer implements StreamViewerInterface {
 
-    static {
-        try {
-            System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-        } catch (UnsatisfiedLinkError e) {
-            System.err.println("Failed to load OpenCV library. Make sure the native library is in your system path.");
-            e.printStackTrace();
-        }
-    }
-
     private VideoCapture capture;
     private final AtomicBoolean running;
     private Consumer<BufferedImage> imageConsumer;
