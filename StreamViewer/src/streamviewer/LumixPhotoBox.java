@@ -150,8 +150,6 @@ public class LumixPhotoBox {
 
     private static String getPreviousViewerType() {
         // This method should return a valid viewer type that was working before
-        // For simplicity, we'll return "webcam" as a fallback, but you might want to implement
-        // a more sophisticated method to remember the last working viewer type
         return "webcam";
     }
 }

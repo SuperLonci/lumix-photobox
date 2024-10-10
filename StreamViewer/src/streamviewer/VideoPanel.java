@@ -17,7 +17,9 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
     private final BackgroundEffect[] backgroundEffects;
     private Color backgroundColor = Color.WHITE;
 
+    private final Options options;
     private boolean isFullScreenTransition = false;
+    private boolean isFullScreen = false;
 
     private BufferedImage currentImage;
     private final JButton photoButton;
@@ -40,7 +42,7 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
     private final String cameraStateMonitorMode;
     private boolean showInfoPanel = false;
 
-    private final LedController ledController;
+    private LedController ledController;
 
     private final Runnable cameraModeSwitch;
 
@@ -49,6 +51,8 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
 
         this.cameraModeSwitch = cameraModeSwitch;
         this.cameraStateMonitorMode = options.getCameraStateMonitorMode();
+
+        this.options = options;
 
         setLayout(null); // Use null layout for absolute positioning
         this.executorService = Executors.newSingleThreadExecutor();
@@ -93,7 +97,7 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
         add(infoPanel);
 
         // Initialize LedController
-        ledController = new LedController(options);
+        initializeLedController();
 
         // Set up key listener for Enter, Esc, F, and B keys
         setFocusable(true);
@@ -171,6 +175,9 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
         }
     }
 
+    private void initializeLedController() {
+        ledController = new LedController(options);
+    }
 
     private void drawFittedImage(Graphics2D g2d, BufferedImage image, boolean force16by9) {
         int panelWidth = getWidth();
@@ -431,39 +438,45 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
             GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
             isFullScreenTransition = true;
             try {
-                if (frame.isUndecorated()) {
+                if (isFullScreen) {
                     exitFullscreen(frame, gd);
                 } else {
                     lastWindowSize = frame.getSize();
                     enterFullscreen(frame, gd);
                 }
+                isFullScreen = !isFullScreen;
             } finally {
                 isFullScreenTransition = false;
             }
-            SwingUtilities.invokeLater(this::requestFocusInWindow);
-            updateComponentPositions();
+            SwingUtilities.invokeLater(() -> {
+                requestFocusInWindow();
+                updateComponentPositions();
+            });
         }
     }
 
     private void exitFullscreen() {
-        System.out.println("exitFullscreen() called"); // Debug print
         Window window = SwingUtilities.getWindowAncestor(this);
         if (window instanceof JFrame frame) {
             GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
             GraphicsDevice gd = ge.getDefaultScreenDevice();
 
-            if (frame.isUndecorated()) {
+            if (isFullScreen) {
                 isFullScreenTransition = true;
                 try {
                     exitFullscreen(frame, gd);
+                    isFullScreen = false;
                 } finally {
                     isFullScreenTransition = false;
                 }
-                requestFocusInWindow();
-                updateComponentPositions();
+                SwingUtilities.invokeLater(() -> {
+                    requestFocusInWindow();
+                    updateComponentPositions();
+                });
             }
         }
     }
+
 
     private void enterFullscreen(JFrame frame, GraphicsDevice gd) {
         frame.dispose();
@@ -486,9 +499,11 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
     @Override
     public void removeNotify() {
         super.removeNotify();
-        ledController.close();
-
         if (!isFullScreenTransition) {
+            if (ledController != null) {
+                ledController.close();
+                ledController = null;
+            }
             if (executorService != null && !executorService.isShutdown()) {
                 executorService.shutdownNow();
             }
