@@ -15,6 +15,7 @@ void rainbowMode();
 void pulseAnimation();
 void cameraShutterAnimation();
 void offMode();
+void chasingLight(CRGB);
 
 void setup() {
     Serial.begin(9600); 
@@ -44,10 +45,7 @@ void loop() {
             rainbowMode();
             break;
         case 4:
-            pulseAnimation();
-            break;
-        case 5:
-            trafficLight();
+            chasingLight(CRGB::White);
             break;
     }
 
@@ -149,3 +147,25 @@ void cameraShutterAnimation() {
     delay(20);
   }
 }
+
+void chasingLight(CRGB color) {
+  static int pos = 0;
+  
+  // Clear the LED at the tail
+  leds[(pos + NUM_LEDS - 4) % NUM_LEDS] = CRGB::Black;
+  
+  // Create the meteor effect
+  for (int i = 0; i < 4; i++) {
+    int tailPos = (pos + i) % NUM_LEDS;
+    int brightness = 255 - (i * 64);  // 255, 191, 127, 63
+    leds[tailPos] = color.nscale8(brightness);
+  }
+  
+  FastLED.show();
+  
+  // Move to the next position
+  pos = (pos + 1) % NUM_LEDS;
+  
+  delay(50);  // Adjust this value to change the speed of the chase
+}
+
