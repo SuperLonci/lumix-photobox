@@ -344,8 +344,11 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
         if (smileyTimer != null && smileyTimer.isRunning()) {
             smileyTimer.stop();
         }
-        smileyTimer = new Timer(1000, e -> {
+        smileyTimer = new Timer(2000, e -> {
             showingSmiley = false;
+            // Return to the previous LED mode after taking the photo
+            ledController.sendCommand("mode " + ledController.getCurrentMode() + ";");
+
             ((Timer) e.getSource()).stop();
             SwingUtilities.invokeLater(this::requestFocusInWindow);
             repaint();
@@ -365,8 +368,6 @@ public class VideoPanel extends JPanel implements CameraStateUpdateListener {
                 } else {
                     showErrorDialog(result.getErrorMessage());
                 }
-                // Return to the previous LED mode after taking the photo
-                ledController.sendCommand("mode " + ledController.getCurrentMode() + ";");
             }));
         });
     }
