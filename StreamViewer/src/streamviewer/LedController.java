@@ -7,7 +7,7 @@ import com.fazecast.jSerialComm.*;
 
 public class LedController {
     private SerialPort serialPort;
-    private int currentMode = 1;
+    private int currentMode = 4;
     private int currentBrightness = 255;
 
     public LedController(Options options) {

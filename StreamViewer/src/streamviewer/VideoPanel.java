@@ -309,6 +309,7 @@ public class VideoPanel extends JPanel {
             }
         });
         countdownTimer.start();
+        ledController.sendCommand("mode 2" + ";");
     }
 
     private void showSmileyImage() {
@@ -331,8 +332,8 @@ public class VideoPanel extends JPanel {
 
     private void takePhoto() {
         repaint();
+        ledController.sendCommand("mode 1" + ";");
         photoButton.setEnabled(false); // Disable the button while taking a photo
-        ledController.sendCommand("mode " + ledController.getCurrentMode() + ";");
         executorService.submit(() -> {
             photoTaker.takePhoto().thenAccept(result -> SwingUtilities.invokeLater(() -> {
                 photoButton.setEnabled(true); // Re-enable the button
@@ -341,6 +342,7 @@ public class VideoPanel extends JPanel {
                 } else {
                     showErrorDialog(result.getErrorMessage());
                 }
+                ledController.sendCommand("mode " + ledController.getCurrentMode() + ";");
             }));
         });
     }

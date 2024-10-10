@@ -27,7 +27,7 @@ public class Options {
         JComboBox<String> viewerTypeCombo = new JComboBox<>(viewerTypes);
         JTextField webcamIndexField = new JTextField("0", 5);
         JCheckBox mockCameraCheckbox = new JCheckBox("Mock Camera Communication");
-        JTextField comPortField = new JTextField(10);
+        JTextField comPortField = new JTextField("COM",10);
 
         JPanel panel = new JPanel(new GridLayout(0, 2));
         panel.add(new JLabel("Camera IP address:"));

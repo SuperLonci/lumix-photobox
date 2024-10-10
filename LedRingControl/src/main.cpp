@@ -5,13 +5,16 @@
 CRGB leds[NUM_LEDS];
 
 int brightness = 154;  // Initial brightness (0-255)
-int mode = 0;  
+int mode = 4;  
 
 void parseCommand(String);
 void steadyMode();
 void blinkMode();
 void fadeMode();
 void rainbowMode();
+void pulseAnimation();
+void cameraShutterAnimation();
+void offMode();
 
 void setup() {
     Serial.begin(9600); 
@@ -29,21 +32,27 @@ void loop() {
     // Execute the current mode
     switch (mode) {
         case 0:
-            steadyMode();
+            offMode();
             break;
         case 1:
-            blinkMode();
+            steadyMode();
             break;
         case 2:
-            fadeMode();
+            cameraShutterAnimation();
             break;
         case 3:
             rainbowMode();
             break;
+        case 4:
+            pulseAnimation();
+            break;
+        case 5:
+            trafficLight();
+            break;
     }
 
     FastLED.show();  // Update the LED strip
-    delay(50);       // Small delay to avoid overloading the CPU
+    delay(20);       // Small delay to avoid overloading the CPU
 }
 
 void parseCommand(String input) {
@@ -60,12 +69,16 @@ void parseCommand(String input) {
     }
 }
 
-// Mode 0: Steady light with the current brightness
+void offMode() {
+    fill_solid(leds, NUM_LEDS, CRGB::Black);  // Set all LEDs to white
+}
+
+//  Steady light 
 void steadyMode() {
     fill_solid(leds, NUM_LEDS, CRGB::White);  // Set all LEDs to white
 }
 
-// Mode 1: Blinking mode (toggle LEDs on and off)
+// Blinking mode (toggle LEDs on and off)
 void blinkMode() {
     static bool ledState = false;
     if (ledState) {
@@ -77,7 +90,7 @@ void blinkMode() {
     delay(500);  // Delay for blink effect
 }
 
-// Mode 2: Fading mode (fade all LEDs in and out)
+// Fading mode (fade all LEDs in and out)
 void fadeMode() {
     static uint8_t fadeValue = 0;
     static int fadeDirection = 1;
@@ -88,9 +101,51 @@ void fadeMode() {
     fill_solid(leds, NUM_LEDS, CHSV(0, 0, fadeValue));  // Set LEDs to fade in and out
 }
 
-// Mode 3: Rainbow mode (cycle through colors)
+// Rainbow mode (cycle through colors)
 void rainbowMode() {
     static uint8_t hue = 0;
     fill_rainbow(leds, NUM_LEDS, hue, 7);  // Cycle through rainbow colors
     hue++;  // Increment hue for smooth transition
+}
+
+void pulseAnimation() {
+  int middleLED = NUM_LEDS / 2;
+  
+  for (int i = 0; i <= middleLED; i++) {
+    // Light up LEDs from bottom to top
+    leds[i] = CRGB::White;
+    leds[NUM_LEDS - 1 - i] = CRGB::White;
+    
+    // Fade out previous LEDs
+    if (i > 0) {
+      fadeToBlackBy(&leds[i-1], 1, 128);
+      fadeToBlackBy(&leds[NUM_LEDS - i], 1, 128);
+    }
+    
+    FastLED.show();
+    delay(1000 / NUM_LEDS);  // Adjust speed of animation
+  }
+}
+
+void cameraShutterAnimation() {
+  // Shutter closing animation
+  for (int i = 0; i < NUM_LEDS / 2; i++) {
+    leds[i] = CRGB::White;
+    leds[NUM_LEDS - 1 - i] = CRGB::White;
+    FastLED.show();
+    delay(50);
+  }
+  
+  // Flash effect
+  fill_solid(leds, NUM_LEDS, CRGB::White);
+  FastLED.show();
+  delay(100);
+  
+  // Shutter opening animation
+  for (int i = (NUM_LEDS / 2) - 1; i >= 0; i--) {
+    leds[i] = CRGB::Black;
+    leds[NUM_LEDS - 1 - i] = CRGB::Black;
+    FastLED.show();
+    delay(20);
+  }
 }
