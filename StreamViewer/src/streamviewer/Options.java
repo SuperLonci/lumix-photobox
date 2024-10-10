@@ -6,18 +6,20 @@ import java.awt.*;
 public class Options {
     private final String cameraIp;
     private final int cameraNetMaskBitSize;
-    private final String viewerType;
+    private String viewerType;
     private final int webcamIndex;
     private final boolean mockCamera;
     private final String comPort;
+    private final boolean useCameraStateMonitor;
 
-    private Options(String cameraIp, int cameraNetMaskBitSize, String viewerType, int webcamIndex, boolean mockCamera, String comPort) {
+    private Options(String cameraIp, int cameraNetMaskBitSize, String viewerType, int webcamIndex, boolean mockCamera, String comPort, boolean useCameraStateMonitor) {
         this.cameraIp = cameraIp;
         this.cameraNetMaskBitSize = cameraNetMaskBitSize;
         this.viewerType = viewerType;
         this.webcamIndex = webcamIndex;
         this.mockCamera = mockCamera;
         this.comPort = comPort;
+        this.useCameraStateMonitor = useCameraStateMonitor;
     }
 
     public static Options read() {
@@ -28,6 +30,7 @@ public class Options {
         JTextField webcamIndexField = new JTextField("0", 5);
         JCheckBox mockCameraCheckbox = new JCheckBox("Mock Camera Communication");
         JTextField comPortField = new JTextField("COM",10);
+        JCheckBox useCameraStateMonitorCheckbox = new JCheckBox("Use Camera State Monitor");
 
         JPanel panel = new JPanel(new GridLayout(0, 2));
         panel.add(new JLabel("Camera IP address:"));
@@ -42,6 +45,8 @@ public class Options {
         panel.add(mockCameraCheckbox);
         panel.add(new JLabel("COM Port (optional):"));
         panel.add(comPortField);
+        panel.add(new JLabel("Use Camera State Monitor:"));
+        panel.add(useCameraStateMonitorCheckbox);
 
         int result = JOptionPane.showConfirmDialog(null, panel,
                 "Enter Camera Settings", JOptionPane.OK_CANCEL_OPTION);
@@ -66,7 +71,8 @@ public class Options {
             if (comPort.isEmpty()) {
                 comPort = null;
             }
-            return new Options(cameraIp, cameraNetMaskBitSize, viewerType, webcamIndex, mockCamera, comPort);
+            boolean useCameraStateMonitor = useCameraStateMonitorCheckbox.isSelected();
+            return new Options(cameraIp, cameraNetMaskBitSize, viewerType, webcamIndex, mockCamera, comPort, useCameraStateMonitor);
         } else {
             System.exit(0);
             return null;
@@ -85,6 +91,10 @@ public class Options {
         return viewerType;
     }
 
+    public void setViewerType(String viewerType) {
+        this.viewerType = viewerType;
+    }
+
     public int getWebcamIndex() {
         return webcamIndex;
     }
@@ -95,5 +105,9 @@ public class Options {
 
     public String getComPort() {
         return comPort;
+    }
+
+    public boolean isUseCameraStateMonitor() {
+        return useCameraStateMonitor;
     }
 }

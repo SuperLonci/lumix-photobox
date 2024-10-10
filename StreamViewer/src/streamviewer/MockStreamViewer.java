@@ -3,6 +3,7 @@ package streamviewer;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.function.Consumer;
 
 public class MockStreamViewer implements StreamViewerInterface {
@@ -10,12 +11,15 @@ public class MockStreamViewer implements StreamViewerInterface {
     private Consumer<BufferedImage> imageConsumer;
     private BufferedImage mockImage;
 
-    public MockStreamViewer(String imagePath) {
-        try {
-            mockImage = ImageIO.read(getClass().getResourceAsStream(imagePath));
+    public MockStreamViewer(String imagePath) throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream(imagePath)) {
+            if (inputStream == null) {
+                throw new IOException("Unable to find resource: " + imagePath);
+            }
+            mockImage = ImageIO.read(inputStream);
         } catch (IOException e) {
             System.err.println("Failed to load mock image: " + e.getMessage());
-            e.printStackTrace();
+            throw e; // Rethrow the exception to be handled by the caller
         }
     }
 

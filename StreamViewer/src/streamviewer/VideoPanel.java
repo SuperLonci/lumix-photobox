@@ -10,13 +10,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.imageio.ImageIO;
 
-public class VideoPanel extends JPanel {
+public class VideoPanel extends JPanel implements CameraStateUpdateListener {
 
     private int currentBackgroundMode = 0;
     private final BackgroundEffect[] backgroundEffects;
     private Color backgroundColor = Color.WHITE;
 
-    private BufferedImage bufferedImage = null;
+    private BufferedImage currentImage;
     private final JButton photoButton;
     private Timer countdownTimer;
     private int countdownSeconds = 0;
@@ -33,12 +33,18 @@ public class VideoPanel extends JPanel {
     private final JLabel batteryLabel;
     private final JLabel sdCardLabel;
     private final JLabel errorLabel;
-    private final CameraStateMonitor cameraStateMonitor;
+    private CameraStateMonitor cameraStateMonitor;
     private boolean showInfoPanel = false;
 
     private final LedController ledController;
 
-    public VideoPanel(Options options) {
+    private final Runnable cameraModeSwitch;
+    private final boolean useCameraStateMonitor;
+
+    public VideoPanel(Options options, Runnable cameraModeSwitch) {
+        this.cameraModeSwitch = cameraModeSwitch;
+        this.useCameraStateMonitor = options.isUseCameraStateMonitor();
+
         setLayout(null); // Use null layout for absolute positioning
         this.executorService = Executors.newSingleThreadExecutor();
 
@@ -79,8 +85,10 @@ public class VideoPanel extends JPanel {
         add(infoPanel);
 
         // Initialize camera state monitor
-        cameraStateMonitor = new CameraStateMonitor(options, this::updateInfoPanel);
-        cameraStateMonitor.start();
+        if (options.isUseCameraStateMonitor()) {
+            CameraStateMonitor cameraStateMonitor = new CameraStateMonitor(options, this::updateInfoPanel);
+            cameraStateMonitor.start();
+        }
 
         // Initialize LedController
         ledController = new LedController(options);
@@ -100,9 +108,8 @@ public class VideoPanel extends JPanel {
                     cycleBackgroundMode();
                 } else if (e.getKeyCode() == KeyEvent.VK_C) {
                     changeBackgroundColor();
-                } else if (e.getKeyCode() == KeyEvent.VK_I) {
-                    showInfoPanel = !showInfoPanel;
-                    updateInfoPanelVisibility();
+                } else if (e.getKeyCode() == KeyEvent.VK_I && useCameraStateMonitor) {
+                    toggleInfoPanel();
                 } else if (e.getKeyCode() == KeyEvent.VK_L) {
                     ledController.cycleMode();
                 } else if (e.getKeyCode() == KeyEvent.VK_H) {
@@ -110,6 +117,8 @@ public class VideoPanel extends JPanel {
                     if (window instanceof JFrame) {
                         ledController.showBrightnessDialog((JFrame) window);
                     }
+                } else if (e.getKeyCode() == KeyEvent.VK_K) {
+                    cameraModeSwitch.run();
                 }
             }
         });
@@ -147,8 +156,8 @@ public class VideoPanel extends JPanel {
 
         backgroundEffects[currentBackgroundMode].render(g2d);
 
-        if (bufferedImage != null) {
-            drawFittedImage(g2d, bufferedImage, true); // Draw video stream with 16:9 aspect ratio
+        if (currentImage != null) {
+            drawFittedImage(g2d, currentImage, true); // Draw video stream with 16:9 aspect ratio
         }
 
         if (showingSmiley && smileyImage != null) {
@@ -254,10 +263,7 @@ public class VideoPanel extends JPanel {
     }
 
     public void displayNewImage(BufferedImage image) {
-        this.bufferedImage = image;
-        for (BackgroundEffect effect : backgroundEffects) {
-            effect.setImage(image);
-        }
+        this.currentImage = image;
         SwingUtilities.invokeLater(this::repaint);
     }
 
@@ -360,35 +366,64 @@ public class VideoPanel extends JPanel {
         });
     }
 
-    private void updateInfoPanel() {
-        batteryLabel.setText("Battery: " + cameraStateMonitor.getBatteryStatus());
-        sdCardLabel.setText("SD Card: " + cameraStateMonitor.getSdCardStatus());
+    @Override
+    public void onCameraStateUpdate(String batteryStatus, String sdCardStatus, String errorMessage, boolean lowBattery, boolean noSdCard) {
+        if (!useCameraStateMonitor) return;
 
-        boolean shouldShowPanel = cameraStateMonitor.isLowBattery() || cameraStateMonitor.isNoSdCard();
+        batteryLabel.setText("Battery: " + batteryStatus);
+        sdCardLabel.setText("SD Card: " + sdCardStatus);
 
-        if (cameraStateMonitor.isLowBattery()) {
-            batteryLabel.setForeground(Color.RED);
-        } else {
-            batteryLabel.setForeground(Color.WHITE);
-        }
+        batteryLabel.setForeground(lowBattery ? Color.RED : Color.WHITE);
 
-        if (cameraStateMonitor.isNoSdCard()) {
+        if (noSdCard) {
             sdCardLabel.setForeground(Color.RED);
             sdCardLabel.setText("SD Card: Not Found");
         } else {
             sdCardLabel.setForeground(Color.WHITE);
         }
 
-        String errorMessage = cameraStateMonitor.getErrorMessage();
-        if (errorMessage != null) {
+        errorLabel.setText(errorMessage != null ? "Error: " + errorMessage : "");
+        errorLabel.setVisible(errorMessage != null && !errorMessage.isEmpty());
+
+        boolean shouldShowPanel = lowBattery || noSdCard || (errorMessage != null && !errorMessage.isEmpty());
+        showInfoPanel = showInfoPanel || shouldShowPanel;
+        updateInfoPanelVisibility();
+    }
+
+
+    public void updateInfoPanel(String batteryStatus, String sdCardStatus, String errorMessage, boolean lowBattery, boolean noSdCard) {
+        if (!useCameraStateMonitor) return;
+
+        batteryLabel.setText("Battery: " + batteryStatus);
+        sdCardLabel.setText("SD Card: " + sdCardStatus);
+
+        if (lowBattery) {
+            batteryLabel.setForeground(Color.RED);
+        } else {
+            batteryLabel.setForeground(Color.WHITE);
+        }
+
+        if (noSdCard) {
+            sdCardLabel.setForeground(Color.RED);
+            sdCardLabel.setText("SD Card: Not Found");
+        } else {
+            sdCardLabel.setForeground(Color.WHITE);
+        }
+
+        if (errorMessage != null && !errorMessage.isEmpty()) {
             errorLabel.setText("Error: " + errorMessage);
             errorLabel.setVisible(true);
-            shouldShowPanel = true;
         } else {
             errorLabel.setVisible(false);
         }
 
+        boolean shouldShowPanel = lowBattery || noSdCard || (errorMessage != null && !errorMessage.isEmpty());
         showInfoPanel = showInfoPanel || shouldShowPanel;
+        updateInfoPanelVisibility();
+    }
+
+    private void toggleInfoPanel() {
+        showInfoPanel = !showInfoPanel;
         updateInfoPanelVisibility();
     }
 
@@ -452,17 +487,5 @@ public class VideoPanel extends JPanel {
         super.removeNotify();
         cameraStateMonitor.stop();
         ledController.close();
-    }
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            Options options = Options.read();
-            JFrame frame = new JFrame("Video Panel");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setSize(800, 600);
-            VideoPanel videoPanel = new VideoPanel(options);
-            frame.add(videoPanel);
-            frame.setVisible(true);
-        });
     }
 }

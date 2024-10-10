@@ -19,35 +19,46 @@ public class CameraStateMonitor {
     private final String cameraIp;
     private final boolean mockCamera;
     private final ScheduledExecutorService scheduler;
-    private final Runnable updateCallback;
+    private final CameraStateUpdateListener updateListener;
 
     private String batteryStatus = "Unknown";
     private String sdCardStatus = "Unknown";
     private String errorMessage = null;
 
-    public CameraStateMonitor(Options options, Runnable updateCallback) {
+    private boolean isRunning = false;
+
+    public CameraStateMonitor(Options options, CameraStateUpdateListener updateListener) {
         this.cameraIp = options.getCameraIp();
         this.mockCamera = options.isMockCamera();
-        this.updateCallback = updateCallback;
+        this.updateListener = updateListener;
         this.scheduler = Executors.newScheduledThreadPool(1);
     }
 
     public void start() {
-        scheduler.scheduleAtFixedRate(this::checkCameraState, 0, 5, TimeUnit.SECONDS);
+        if (!isRunning) {
+            isRunning = true;
+            scheduler.scheduleAtFixedRate(this::checkCameraState, 0, 10, TimeUnit.SECONDS);
+        }
     }
 
     public void stop() {
-        scheduler.shutdown();
+        if (isRunning) {
+            isRunning = false;
+            scheduler.shutdown();
+        }
     }
 
     private void checkCameraState() {
         try {
             String response = mockCamera ? getMockResponse() : sendRequest();
             parseResponse(response);
+            errorMessage = null;
         } catch (Exception e) {
             errorMessage = "Error connecting to camera: " + e.getMessage();
         }
-        SwingUtilities.invokeLater(updateCallback);
+        SwingUtilities.invokeLater(() -> {
+            updateListener.onCameraStateUpdate(batteryStatus, sdCardStatus, errorMessage, isLowBattery(), isNoSdCard());
+        });
     }
 
     private String sendRequest() throws Exception {

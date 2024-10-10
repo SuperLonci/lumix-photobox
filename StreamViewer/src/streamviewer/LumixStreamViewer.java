@@ -1,97 +1,147 @@
 package streamviewer;
 
+import javax.swing.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import javax.swing.*;
+import java.io.IOException;
 
 public class LumixStreamViewer {
-
-    private static Thread streamViewerThread;
     private static JFrame window;
-    private static boolean isFullscreen = false;
     private static VideoPanel videoPanel;
+    private static StreamViewerInterface currentStreamViewer;
+    private static Options options;
+    private static Thread streamViewerThread;
+    private static CameraStateMonitor cameraStateMonitor;
 
     public static void main(String[] args) {
         System.load(System.getProperty("user.dir") + "/lib/opencv_java4100.dll");  // For Windows
 
-        Options options = Options.read();
-        if (options == null) {
-            return;  // User cancelled the input dialog
-        }
-
-        String cameraIp = options.getCameraIp();
-        int cameraNetMaskBitSize = options.getCameraNetMaskBitSize();
-        String viewerType = options.getViewerType();
-        int webcamIndex = options.getWebcamIndex();
-
-        videoPanel = new VideoPanel(options);
-
-        StreamViewerInterface streamViewer = null;
-        boolean viewerCreated = false;
-
-        while (!viewerCreated) {
-            try {
-                switch (viewerType) {
-                    case "mock":
-                        streamViewer = new MockStreamViewer("./mockImage.png");
-                        break;
-                    case "real":
-                        streamViewer = new StreamViewer(videoPanel::displayNewImage, cameraIp, cameraNetMaskBitSize);
-                        break;
-                    case "webcam":
-                        streamViewer = new WebcamStreamViewer(webcamIndex);
-                        break;
-                    default:
-                        throw new IllegalArgumentException("Invalid viewer type selected.");
-                }
-                viewerCreated = true;
-            } catch (Exception e) {
-                String errorMessage = "Error creating " + viewerType + " viewer: " + e.getMessage();
-                if (viewerType.equals("webcam")) {
-                    errorMessage += "\n\nPossible reasons for this error:\n" +
-                            "1. No webcam is connected to your system.\n" +
-                            "2. The selected webcam index is incorrect.\n" +
-                            "3. The webcam is being used by another application.\n" +
-                            "4. There are issues with the webcam drivers.\n\n" +
-                            "Please ensure a webcam is connected and try again with a different index (starting from 0).";
-                }
-                errorMessage += "\n\nWould you like to try again with different settings?";
-
-                int response = JOptionPane.showConfirmDialog(null, errorMessage, "Error", JOptionPane.YES_NO_OPTION);
-                if (response != JOptionPane.YES_OPTION) {
-                    System.exit(1);
-                }
-                options = Options.read();
-                if (options == null) {
-                    System.exit(0);
-                }
-                viewerType = options.getViewerType();
-                webcamIndex = options.getWebcamIndex();
+        SwingUtilities.invokeLater(() -> {
+            options = Options.read();
+            if (options == null) {
+                return;  // User cancelled the input dialog
             }
-        }
 
-        streamViewer.setImageConsumer(videoPanel::displayNewImage);
-        streamViewerThread = new Thread(streamViewer);
-        streamViewerThread.start();
+            initializeUI();
+            initializeStreamViewer();
+            initializeCameraStateMonitor();
+        });
+    }
 
+    private static void initializeUI() {
         window = new JFrame("Lumix Photobox");
+        videoPanel = new VideoPanel(options, LumixStreamViewer::switchCameraMode);
         window.add(videoPanel);
-        window.setSize(800, 600);  // Set a default size
+        window.setSize(1600, 900);
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         window.setVisible(true);
 
         window.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent ev) {
-                try {
-                    streamViewerThread.interrupt();
-                    streamViewerThread.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
+                stopStreamViewer();
+                stopCameraStateMonitor();
                 System.exit(0);
             }
         });
+    }
+
+    private static void initializeCameraStateMonitor() {
+        if (options.isUseCameraStateMonitor()) {
+            cameraStateMonitor = new CameraStateMonitor(options, videoPanel);
+            cameraStateMonitor.start();
+        }
+    }
+
+    private static void stopCameraStateMonitor() {
+        if (cameraStateMonitor != null) {
+            cameraStateMonitor.stop();
+        }
+    }
+
+    private static boolean initializeStreamViewer() {
+        stopStreamViewer(); // Stop any existing viewer
+
+        try {
+            currentStreamViewer = createStreamViewer(options.getViewerType());
+            currentStreamViewer.setImageConsumer(videoPanel::displayNewImage);
+            streamViewerThread = new Thread(currentStreamViewer);
+            streamViewerThread.start();
+            return true;
+        } catch (Exception e) {
+            handleStreamViewerError(e);
+            return false;
+        }
+    }
+
+    private static StreamViewerInterface createStreamViewer(String viewerType) throws Exception {
+        switch (viewerType) {
+            case "mock":
+                return new MockStreamViewer("/mockImage.png");
+            case "real":
+                return new StreamViewer(videoPanel::displayNewImage, options.getCameraIp(), options.getCameraNetMaskBitSize());
+            case "webcam":
+                return new WebcamStreamViewer(options.getWebcamIndex());
+            default:
+                throw new IllegalArgumentException("Invalid viewer type selected.");
+        }
+    }
+
+    private static void stopStreamViewer() {
+        if (currentStreamViewer != null) {
+            if (currentStreamViewer instanceof WebcamStreamViewer) {
+                ((WebcamStreamViewer) currentStreamViewer).stop();
+            }
+            if (streamViewerThread != null) {
+                streamViewerThread.interrupt();
+                try {
+                    streamViewerThread.join(1000); // Wait for the thread to finish, but not more than 1 second
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            currentStreamViewer = null;
+            streamViewerThread = null;
+        }
+        // Clear the video panel
+        SwingUtilities.invokeLater(() -> videoPanel.displayNewImage(null));
+    }
+
+    public static void switchCameraMode() {
+        CameraModeSelector selector = new CameraModeSelector(window, options);
+        String newMode = selector.selectMode();
+        if (newMode != null && !newMode.equals(options.getViewerType())) {
+            String previousMode = options.getViewerType();
+            options.setViewerType(newMode);
+            if (!initializeStreamViewer()) {
+                // If initialization fails, revert to the previous mode
+                options.setViewerType(previousMode);
+                initializeStreamViewer();
+            }
+            // Update CameraStateMonitor if needed
+            stopCameraStateMonitor();
+            initializeCameraStateMonitor();
+        }
+    }
+
+    private static void handleStreamViewerError(Exception e) {
+        String errorMessage = "Error initializing stream viewer: " + e.getMessage();
+        if (e instanceof IOException && options.getViewerType().equals("mock")) {
+            errorMessage += "\nMake sure the mock image file exists in the resources folder.";
+        }
+        JOptionPane.showMessageDialog(window, errorMessage, "Error", JOptionPane.ERROR_MESSAGE);
+
+        // Revert to the previous viewer type if available
+        if (currentStreamViewer != null) {
+            options.setViewerType(getPreviousViewerType());
+            initializeStreamViewer();
+        }
+    }
+
+    private static String getPreviousViewerType() {
+        // This method should return a valid viewer type that was working before
+        // For simplicity, we'll return "webcam" as a fallback, but you might want to implement
+        // a more sophisticated method to remember the last working viewer type
+        return "webcam";
     }
 }

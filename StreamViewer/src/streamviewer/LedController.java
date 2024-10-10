@@ -12,10 +12,10 @@ public class LedController {
 
     public LedController(Options options) {
         String comPort = options.getComPort();
-        if (comPort != null) {
-            connectToSerial(comPort);
-        } else {
+        if (comPort == null || comPort.equals("COM")) {
             System.out.println("No COM port specified. LED control disabled.");
+        } else {
+            connectToSerial(comPort);
         }
     }
 
