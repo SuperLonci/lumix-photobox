@@ -3,15 +3,115 @@
 <!-- some examples of how to customize the build. -->
 <!-- (If you delete it and reopen the project it will be recreated.) -->
 
+<!--<project name="StreamViewer" default="default" basedir=".">-->
+<!--    <description>Builds the project StreamViewer.</description>-->
+<!--    <import file="nbproject/build-impl.xml"/>-->
+
+<!--    <target depends="compile,jar" description="Build whole project" name="default" />-->
+
+<!--    <target name="-post-jar">-->
+<!--        <copy todir=".." file="${dist.dir}/StreamViewer.jar" overwrite="true" />-->
+<!--        <zip destfile="${dist.dir}/lumix-link.zip" basedir=".." includes="*.html, *.js, *.css, *.bat, *.sh, *.jar, README.md, LICENSE.md" />-->
+<!--    </target>-->
+
+<!--</project>-->
+
+<!--<project name="StreamViewer" default="default" basedir=".">-->
+<!--    <description>Builds the project StreamViewer.</description>-->
+<!--    <import file="nbproject/build-impl.xml"/>-->
+
+<!--    <target depends="compile,jar" description="Build whole project" name="default" />-->
+
+<!--    <target name="-pre-jar">-->
+<!--        &lt;!&ndash; Create a lib folder in build/classes if it doesn't exist &ndash;&gt;-->
+<!--        <mkdir dir="${build.classes.dir}/lib"/>-->
+
+<!--        &lt;!&ndash; Copy OpenCV library to build/classes/lib &ndash;&gt;-->
+<!--        <copy todir="${build.classes.dir}/lib" flatten="true">-->
+<!--            <fileset dir="${basedir}">-->
+<!--                <include name="**/opencv_java*.dll"/>-->
+<!--                <include name="**/libopencv_java*.so"/>-->
+<!--                <include name="**/libopencv_java*.dylib"/>-->
+<!--            </fileset>-->
+<!--        </copy>-->
+
+<!--        &lt;!&ndash; Copy other resources if any &ndash;&gt;-->
+<!--        <copy todir="${build.classes.dir}">-->
+<!--            <fileset dir="${src.dir}" excludes="**/*.java"/>-->
+<!--        </copy>-->
+<!--    </target>-->
+
+<!--    <target name="-post-jar">-->
+<!--        <copy todir=".." file="${dist.dir}/StreamViewer.jar" overwrite="true" />-->
+<!--        <zip destfile="${dist.dir}/lumix-link.zip" basedir=".." includes="*.html, *.js, *.css, *.bat, *.sh, *.jar, README.md, LICENSE.md" />-->
+<!--    </target>-->
+<!--</project>-->
+
 <project name="StreamViewer" default="default" basedir=".">
     <description>Builds the project StreamViewer.</description>
     <import file="nbproject/build-impl.xml"/>
 
+    <!-- Add this new property for the lib directory -->
+    <property name="lib.dir" value="lib"/>
+
+    <!-- Create a path for the new library -->
+    <path id="classpath.lib">
+        <fileset dir="${lib.dir}" includes="**/*.jar"/>
+    </path>
+
     <target depends="compile,jar" description="Build whole project" name="default" />
+
+    <!-- Update the compile target to include the new library -->
+    <target name="-do-compile" depends="init,deps-jar,-pre-pre-compile,-pre-compile,-copy-persistence-xml,-compile-depend" unless="already.compiled">
+        <javac srcdir="${src.dir}" destdir="${build.classes.dir}" encoding="${source.encoding}"
+               includes="${includes}" excludes="${excludes}"
+               debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+               source="${javac.source}" target="${javac.target}">
+            <classpath>
+                <path refid="classpath.lib"/>
+                <path path="${javac.classpath}"/>
+            </classpath>
+        </javac>
+    </target>
+
+    <target name="-pre-jar">
+        <!-- Create a lib folder in build/classes if it doesn't exist -->
+        <mkdir dir="${build.classes.dir}/lib"/>
+
+        <!-- Copy OpenCV library to build/classes/lib -->
+        <copy todir="${build.classes.dir}/lib" flatten="true">
+            <fileset dir="${basedir}">
+                <include name="**/opencv_java*.dll"/>
+                <include name="**/libopencv_java*.so"/>
+                <include name="**/libopencv_java*.dylib"/>
+            </fileset>
+        </copy>
+
+        <!-- Copy jSerialComm library to build/classes/lib -->
+        <copy todir="${build.classes.dir}/lib" flatten="true">
+            <fileset dir="${lib.dir}" includes="jSerialComm*.jar"/>
+        </copy>
+
+        <!-- Copy other resources if any -->
+        <copy todir="${build.classes.dir}">
+            <fileset dir="${src.dir}" excludes="**/*.java"/>
+        </copy>
+    </target>
+
+    <!-- Update the jar target to include the Class-Path in the manifest -->
+    <target name="-jar-application" depends="init,compile,-pre-jar">
+        <mkdir dir="${dist.dir}"/>
+        <jar destfile="${dist.jar}" >
+            <manifest>
+                <attribute name="Main-Class" value="${main.class}"/>
+                <attribute name="Class-Path" value=". lib/jSerialComm-2.11.0.jar"/> <!-- Update version if different -->
+            </manifest>
+            <fileset dir="${build.classes.dir}"/>
+        </jar>
+    </target>
 
     <target name="-post-jar">
         <copy todir=".." file="${dist.dir}/StreamViewer.jar" overwrite="true" />
-        <zip destfile="${dist.dir}/lumix-link.zip" basedir=".." includes="*.html, *.js, *.css, *.bat, *.sh, *.jar, README.md, LICENSE.md" />
+        <zip destfile="${dist.dir}/lumix-link.zip" basedir=".." includes="*.html, *.js, *.css, *.bat, *.sh, *.jar, README.md, LICENSE.md, lib/jSerialComm*.jar" />
     </target>
-
 </project>
